@@ -25,7 +25,11 @@ SECRET_KEY = 'django-insecure-=$%nu+k1ji0i!hti@r93+d8t%4fm$b5lidu%ak$%jqy0b78w#_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'bookspicker-backend.onrender.com',
+    'localhost',
+    '127.0.0.1',
+]
 
 
 # Application definition
