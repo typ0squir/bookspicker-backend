@@ -1,0 +1,5 @@
+﻿Entry Point,Description,Method,사용 가능 API,상태,텍스트
+/recommends/similar,특정 도서와 비슷한 도서 추천,GET,No,시작 전,
+/recommends/trending,인기/트렌딩 도서 추천,GET,No,시작 전,
+/recommends/,개인화 도서 추천,GET,No,시작 전,
+/recommends/diverse,특정 도서와 다른 도서 추천,GET,No,시작 전,

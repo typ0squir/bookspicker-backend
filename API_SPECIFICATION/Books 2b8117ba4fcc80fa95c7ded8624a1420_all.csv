@@ -1,0 +1,10 @@
+﻿Entry Point,Description,Method,사용 가능 API,상태,텍스트
+/books/search?q={…}," 도서 검색",GET,No,시작 전,
+/books/{isbn}/review,도서 리뷰 생성,POST,No,시작 전,
+/books/{isbn},도서 상세 정보 조회,GET,No,시작 전,
+/books/popular?q={,많이 읽힌 도서 목록 조회(월간/주간/스테디),GET,No,시작 전,
+/,"메인 페이지 조회 ",GET,No,시작 전,
+/books/{isbn}/review/{reviewId},도서 리뷰 수정,PATCH,No,시작 전,
+/books/{isbn}/review/{reviewId},도서 리뷰 삭제,DELETE,No,시작 전,
+/books/{isbn}/likes,좋아요 생성/취소(토글),POST,No,시작 전,
+/books/author/{authorId},작가 상세 정보 조회,GET,No,시작 전,

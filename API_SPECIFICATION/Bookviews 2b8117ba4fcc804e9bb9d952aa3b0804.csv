@@ -1,0 +1,4 @@
+﻿사용 가능 API,Method,Entry Point,Description,상태,텍스트
+No,GET,/bookviews/{isbn},특정 도서 스트림,시작 전,
+No,POST,/bookviews/{isbn},특정 도서 하이라이트 생성,시작 전,
+No,DELETE,/bookviews/{isbn}/highlights/{highlightId},특정 도서 하이라이트 삭제,시작 전,
