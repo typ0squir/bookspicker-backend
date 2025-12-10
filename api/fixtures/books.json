@@ -1,0 +1,152 @@
+[
+  {
+    "model": "api.book",
+    "pk": 9788933883052,
+    "fields": {
+      "series": "-",
+      "title": "갈림길",
+      "subtitle": "누구나 생에 한 번은 그 길에 선다",
+      "publisher": "세계사",
+      "published_date": "2013-02-23",
+      "genre": "영미소설 > 영미소설 일반",
+      "cover": "01.jpg",
+      "page_count": 432,
+      "purchase_link": "https://product.kyobobook.co.kr/detail/S000000588701"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": 9788995438269,
+    "fields": {
+      "series": "레이크 형사 시리즈5",
+      "title": "감염유희",
+      "subtitle": "-",
+      "publisher": "자유와모음",
+      "published_date": "2018-08-25",
+      "genre": "일본소설 > 미스터리/스릴러 소설",
+      "cover": "02.jpg",
+      "page_count": 312,
+      "purchase_link": "https://product.kyobobook.co.kr/detail/S000000775901"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": 9788965707295,
+    "fields": {
+      "series": "-",
+      "title": "고양이 손님",
+      "subtitle": "-",
+      "publisher": "박하",
+      "published_date": "2014-12-12",
+      "genre": "일본소설 > 일본소설일반",
+      "cover": "03.jpg",
+      "page_count": 204,
+      "purchase_link": "https://product.kyobobook.co.kr/detail/S000000124759"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": 9788925554411,
+    "fields": {
+      "series": "링크 라임 시리즈 3",
+      "title": "곤충소년",
+      "subtitle": "-",
+      "publisher": "랜덤하우스코리아",
+      "published_date": "2009-09-25",
+      "genre": "일본소설 > 미스터리/스릴러소설",
+      "cover": "04.jpg",
+      "page_count": 556,
+      "purchase_link": "https://product.kyobobook.co.kr/detail/S000000476662"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": 9791164453672,
+    "fields": {
+      "series": "더클래식 세계문학 컬렉션",
+      "title": "그리스인 조르바",
+      "subtitle": "-",
+      "publisher": "더클래식",
+      "published_date": "2020-11-23",
+      "genre": "그외유럽소설 > 그외유럽소설",
+      "cover": "05.jpg",
+      "page_count": 424,
+      "purchase_link": "https://product.kyobobook.co.kr/detail/S000002121774"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": 9788928733067,
+    "fields": {
+      "series": "스티븐 킹 전집 6",
+      "title": "그린 마일",
+      "subtitle": "-",
+      "publisher": "황금가지",
+      "published_date": "2014-01-02",
+      "genre": "영미소설 > 공포/호러소설",
+      "cover": "06.jpg",
+      "page_count": 590,
+      "purchase_link": "https://product.kyobobook.co.kr/detail/S000000127748"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": 9788994369144,
+    "fields": {
+      "series": "웅진지식하우스 일본문학선집 시리즈3",
+      "title": "금각사",
+      "subtitle": "-",
+      "publisher": "니케북스",
+      "published_date": "2018-11-05",
+      "genre": "프랑스소설 > 프랑스소설일반",
+      "cover": "07.jpg",
+      "page_count": 212,
+      "purchase_link": "https://product.kyobobook.co.kr/detail/S000001547706"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": 9790112950907,
+    "fields": {
+      "series": "열린책들 세계문학 30",
+      "title": "까라마조프 씨네 형제들(중)",
+      "subtitle": "-",
+      "publisher": "웅진지식하우스",
+      "published_date": "2004-07-02",
+      "genre": "러시아소설 > 고전소설/문학선",
+      "cover": "08.jpg",
+      "page_count": 198,
+      "purchase_link": "https://product.kyobobook.co.kr/detail/S000000003840"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": 9788932920946,
+    "fields": {
+      "series": "열린책들 세계문학 31",
+      "title": "까라마조프 씨네 형제들(하)",
+      "subtitle": "-",
+      "publisher": "열린책들",
+      "published_date": "2009-12-02",
+      "genre": "러시아소설 > 고전소설/문학선",
+      "cover": "09.jpg",
+      "page_count": 974,
+      "purchase_link": "https://product.kyobobook.co.kr/detail/S000001749880"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": 9788975276243,
+    "fields": {
+      "series": "세계문학전집 12",
+      "title": "꿈꾸는 책들의 도시",
+      "subtitle": "차모니아 대륙 연대기",
+      "publisher": "들녘",
+      "published_date": "2014-08-12",
+      "genre": "독일소설 > 고전소설/문학선",
+      "cover": "11.jpg",
+      "page_count": 720,
+      "purchase_link": "https://product.kyobobook.co.kr/detail/S000001725011"
+    }
+  }
+]
