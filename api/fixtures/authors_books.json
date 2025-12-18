@@ -1,0 +1,20 @@
+[
+  {
+    "model": "api.authorsbook",
+    "pk": 1,
+    "fields": {
+      "author": 31,
+      "book": "9788925553313",
+      "role": "AUTHOR"
+    }
+  },
+  {
+    "model": "api.authorsbook",
+    "pk": 2,
+    "fields": {
+      "author": 52,
+      "book": "9788925553313",
+      "role": "ILLUSTRATOR"
+    }
+  }
+]

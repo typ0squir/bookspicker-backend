@@ -3,11 +3,17 @@ from . import views
 
 app_name = 'api'
 urlpatterns = [
-    path('books/', views.book_list, name='book-list'),
-    path('books/<int:isbn>/', views.book_detail, name='book-detail'),
-    path('books/popular/', views.popular_books, name='book-popular'),
-    path('books/search/', views.search_books, name='book-search'),
-    path('books/<int:isbn>/review/', views.create_review, name='review-create'),
-    path('books/<str:isbn>/review/<int:review_id>/', views.review_detail, name='review-detail'),
-    path("books/<str:isbn>/likes", views.book_like_toggle, name="book-like-toggle"),
+    # books
+    path("books/<str:isbn>/", views.book_detail),
+    path("books/<str:isbn>/likes/", views.book_like_toggle),
+    path("books/<str:isbn>/wishlist/", views.book_wishlist_toggle),
+    path("books/<str:isbn>/comment/", views.book_comment),
+    path("books/<str:isbn>/library/", views.add_book_to_library),
+
+    # bookviews
+    path("bookviews/<str:isbn>/", views.bookview_meta),
+    path("bookviews/<str:isbn>/content/", views.bookview_content),
+
+    # main
+    path("main/current-reading/", views.main_current_reading),
 ]

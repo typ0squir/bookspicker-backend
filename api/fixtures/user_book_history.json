@@ -1,0 +1,30 @@
+[
+  {
+    "model": "api.userbookhistory",
+    "pk": 101,
+    "fields": {
+      "user": 1,
+      "book": "9788925553313",
+      "started_at": "2025-02-01T20:30:00",
+      "finished_at": "2025-02-01T22:00:00",
+      "current_location": 1200,
+      "comment": "마지막 장을 덮고 한참 동안 여운이 남는 책이었어요.",
+      "last_read_at": "2025-02-01T21:15:00",
+      "progress_percent": 100.0
+    }
+  },
+  {
+    "model": "api.userbookhistory",
+    "pk": 102,
+    "fields": {
+      "user": 34,
+      "book": "9788925553313",
+      "started_at": "2025-02-03T09:10:00",
+      "finished_at": null,
+      "current_location": 850,
+      "comment": "동화처럼 읽히는데 메시지는 결코 가볍지 않아요.",
+      "last_read_at": "2025-02-03T10:02:00",
+      "progress_percent": 42.0
+    }
+  }
+]

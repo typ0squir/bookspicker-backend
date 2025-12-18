@@ -1,0 +1,20 @@
+[
+  {
+    "model": "api.author",
+    "pk": 31,
+    "fields": {
+      "name": "한윤섭",
+      "bio": "사람 사이의 온도와 감정의 결을 섬세하게 포착하는 작가.",
+      "profile_image": "https://example.com/authors/31.jpg"
+    }
+  },
+  {
+    "model": "api.author",
+    "pk": 52,
+    "fields": {
+      "name": "이로우",
+      "bio": "부드러운 색감과 여백을 활용한 그림으로 정서를 확장하는 일러스트레이터.",
+      "profile_image": "https://example.com/authors/52.jpg"
+    }
+  }
+]

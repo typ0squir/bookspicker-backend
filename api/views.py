@@ -1,364 +1,773 @@
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import get_object_or_404
+import os
+from django.conf import settings
+
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from django.db.models import Q, F
 from rest_framework import status
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
+from django.db.models import F
+from django.utils import timezone
+from datetime import timedelta
 
-from api.models import (
-    Book, Review, ReviewTag, Tag, BookTag, UserBookHistory
+from ebooklib import epub
+from bs4 import BeautifulSoup
+
+from .models import (
+    Book, AuthorsBook, BookTag, Tag,
+    UserBookHistory, UserBookLike, Wishlist,
+    Library, UserBookHistory
 )
-from .serializers import (
-    BookListSerializer, 
-    BookDetailSerializer, 
-    BookPopularSerializer, 
-    BookSearchSerializer,
-    ReviewCreateSerializer,
-    ReviewResponseSerializer,
-    ReviewSerializer,
-)
 
+from .serializers import CurrentReadingBookSerializer
 
-@api_view(['GET'])
-def book_list(request):
-    books = Book.objects.all()
-    serializer = BookListSerializer(books, many=True)
-    return Response({"books": serializer.data})
+MAX_COMMENT_LENGTH = 280
 
-@api_view(['GET'])
+def error_response(message, code, status_code):
+    return Response(
+        {
+            "message": message,
+            "error": {"code": code},
+        },
+        status=status_code,
+    )
+
+# --------------------------
+# Books
+# --------------------------
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@authentication_classes([])
 def book_detail(request, isbn):
-    """
-    도서 상세 정보 조회 API
-    GET /api/books/<isbn>/
-    """
-    book = get_object_or_404(Book, pk=isbn)
-    base_data = BookDetailSerializer(book).data
 
-    # TODO: 아래 값들은 현재 더미이며, 나중에 실제 DB/로직으로 교체 예정
-    authors = ["한윤섭(지은이)", "이로우(그림)"]
-    is_liked = True  # TODO: 로그인 사용자 + Wishlist/Like 모델과 연동
-    action_urls = {
-        "read_now_url": f"https://example.com/reader/{book.isbn}",
-        "wish_url": f"https://example.com/users/wish/{book.isbn}",
-        "purchase_url": book.purchase_link or f"https://example.com/store/{book.isbn}",
-    }
-    why_picked = {
-        "body": (
-            "최근 닉네임님이 고른 책들을 보면, 사람 사이의 따뜻함과 조용한 연민이 스며든 이야기들을 자주 선택하시는 느낌이었어요. "
-            "『이야기의 신』은 그런 닉네임님의 취향과 닿아 있는 동화 같은 장편이에요. "
-            "어른이 되었지만 여전히 마음 한구석에 남아 있는 불안과 따뜻함을 동시에 건드려 주는 이야기라 올해 추천 도서로 선택했어요."
+    # -----------------------------
+    # Book 조회
+    # -----------------------------
+    try:
+        book = Book.objects.select_related("genre__parent").get(isbn=isbn)
+    except Book.DoesNotExist:
+        return Response(
+            {"message": "도서를 찾을 수 없습니다."},
+            status=status.HTTP_404_NOT_FOUND,
         )
-    }
-    tags = [
-        {"id": 1, "name": "따뜻한 이야기", "tag_count": 128},
-        {"id": 2, "name": "성장", "tag_count": 8},
-        {"id": 3, "name": "가족", "tag_count": 148},
-    ]
-    author_intro = (
-        "한윤섭 작가는 국내 문학에서 오랫동안 활약해 온 이야기꾼이며, "
-        "이로우 작가는 감각적인 그림으로 독자에게 깊은 인상을 남기는 일러스트레이터이다."
-    )
-    comments = [
-        {
-            "comment_id": 101,
-            "user": {
-                "nickname": "행인1",
-                "profile_image": "https://example.com/users/1/profile.png",
-            },
-            "created_at": "2025-02-01T21:15:00",
-            "content": "마지막 장을 덮고 한참 동안 여운이 남는 책이었어요.",
-            "is_owner": False,
-        },
-        {
-            "comment_id": 102,
-            "user": {
-                "nickname": "책읽는고양이",
-                "profile_image": "https://example.com/users/2/profile.png",
-            },
-            "created_at": "2025-02-03T10:02:00",
-            "content": "동화처럼 읽히는데 메시지는 결코 가볍지 않아요.",
-            "is_owner": True,
-        },
-    ]
-    comment_count = len(comments)
 
-    book_payload = {
-        **base_data,
-        "authors": authors,
-        "is_liked": is_liked,
-        "action_urls": action_urls,
-        "why_picked": why_picked,
-        "tags": tags,
-        "author_intro": author_intro,
-        "comments": comments,
-        "comment_count": comment_count,
-    }
+    # -----------------------------
+    # 장르 경로
+    # -----------------------------
+    genre_path = None
+    if book.genre and book.genre.parent:
+        genre_path = f"{book.genre.parent.name} > {book.genre.name}"
 
-    response_data = {
-        "message": "도서 상세 정보 조회 성공",
-        "book": book_payload,
-    }
-
-    return Response(response_data)
-
-@api_view(['GET'])
-def popular_books(request):
-    """
-    많이 읽힌 도서 목록 조회 API
-    GET /api/books/popular/?q=monthly  (or weekly, steady)
-    """
-    query = request.query_params.get("q", "monthly")
-
-    # 기본 쿼리셋
-    qs = Book.objects.all()
-
-    if query == "weekly":
-        qs = qs.order_by("-readed_num_week")
-        type_label = "weekly"
-    elif query == "steady":
-        qs = qs.filter(is_steady=True).order_by("-readed_num_month")
-        type_label = "steady"
-    else:
-        # 그 외 값이 들어와도 monthly로 처리
-        qs = qs.order_by("-readed_num_month")
-        type_label = "monthly"
-
-    # 상위 N권만 제공 (예: 20권)
-    qs = qs[:20]
-
-    serializer = BookPopularSerializer(qs, many=True)
-    books_data = serializer.data
-
-    # rank 부여 (1부터 시작)
-    for idx, item in enumerate(books_data, start=1):
-        item["rank"] = idx
-
-    response_data = {
-        "message": "많이 읽힌 도서 목록 조회 성공",
-        "type": type_label,
-        "books": books_data,
-        "total": len(books_data),
-    }
-
-    return Response(response_data)
-
-@api_view(['GET'])
-def search_books(request):
-    """
-    도서 검색 API
-    GET /api/books/search/?q=여행
-    """
-    query = request.query_params.get("q", "").strip()
-
-    if not query:
-        return Response({
-            "message": "검색어(q)는 필수입니다.",
-            "q": "",
-            "books": [],
-            "total": 0
-        }, status=400)
-
-    # 검색 로직 (title, subtitle, publisher, genre 포함)
-    # TODO: 추후에 tag 검색까지 포함하기
-    books = Book.objects.filter(
-        Q(title__icontains=query) |
-        Q(subtitle__icontains=query) |
-        Q(publisher__icontains=query) |
-        Q(genre__icontains=query)
-    ).distinct()
-
-    serializer = BookSearchSerializer(books, many=True)
-
-    return Response({
-        "message": "도서 검색 조회 성공",
-        "q": query,
-        "books": serializer.data,
-        "total": len(serializer.data)
-    }) 
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def create_review(request, isbn):
-    book = get_object_or_404(Book, isbn=isbn)
-    
-    serializer = ReviewCreateSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-
-    content = serializer.validated_data["content"]
-    tag_names = serializer.validated_data.get("tags", [])
-
-    # 1) 리뷰 생성
-    review = Review.objects.create(
-        book=book,
-        user=request.user,
-        content=content
+    # -----------------------------
+    # 작가 목록
+    # -----------------------------
+    authors_qs = (
+        AuthorsBook.objects
+        .select_related("author")
+        .filter(book=book)
     )
 
-    # 2) 태그 처리 (기존 태그는 그대로 사용, 없는 태그는 생성)
-    for tag_name in tag_names:
-        tag_name = tag_name.strip()
-        if not tag_name:
-            continue
+    authors = []
+    for ab in authors_qs:
+        authors.append({
+            "author_id": ab.author.id,
+            "name": ab.author.name,
+            "role": ab.role,
+            "bio": ab.author.bio,
+            "detail_url": f"https://example.com/books/author/{ab.author.id}",
+        })
 
-        # a. 태그 생성/재사용
-        tag_obj, _ = Tag.objects.get_or_create(name=tag_name)
-
-        # b. 리뷰–태그 연결 (ReviewTag)
-        ReviewTag.objects.get_or_create(review=review, tag=tag_obj)
-
-        # c. 책–태그 집계 (BookTag.tag_count 증가)
-        book_tag, created = BookTag.objects.get_or_create(
+    # -----------------------------
+    # 태그 목록
+    # -----------------------------
+    book_tags_qs = (
+        BookTag.objects
+        .select_related("tag")
+        .filter(
             book=book,
-            tag=tag_obj,
-            defaults={"tag_count": 0},
+            tag__status="ACTIVE",
         )
-        if created:
-            # 첫 번째로 선택된 경우
-            book_tag.tag_count = 1
-            book_tag.save(update_fields=["tag_count"])
-        else:
-            # 이미 있으면 +1
-            BookTag.objects.filter(pk=book_tag.pk).update(
-                tag_count=F("tag_count") + 1
-            )
-    # 3) 응답 직렬화
-    response_data = ReviewResponseSerializer(
-        review,
-        context={"request": request}
-    ).data
+        .order_by("-tag_count")[:15]
+    )
 
-    return Response({
-        "message": "도서 리뷰가 성공적으로 등록되었습니다.",
-        "review": response_data,
-    })
+    book_tags = []
+    for bt in book_tags_qs:
+        book_tags.append({
+            "id": bt.tag.id,
+            "name": bt.tag.name,
+            "tag_count": bt.tag_count,
+        })
 
-@api_view(['GET', 'PATCH', 'DELETE'])
-@permission_classes([IsAuthenticated])
-def review_detail(request, isbn, review_id):
+    # -----------------------------
+    # 좋아요 여부
+    # -----------------------------
+    is_liked = False
+    if request.user.is_authenticated:
+        is_liked = UserBookLike.objects.filter(
+            user=request.user,
+            book=book
+        ).exists()
 
-    book = get_object_or_404(Book, isbn=isbn)
-    review = get_object_or_404(Review, id=review_id, book=book)
-
-    # 권한 체크
-    if request.method in ['PATCH', 'DELETE'] and review.user != request.user:
-        return Response(
-            {"detail": "리뷰를 수정/삭제할 권한이 없습니다."},
-            status=status.HTTP_403_FORBIDDEN,
+    # -----------------------------
+    # 댓글 (UserBookHistory.comment 기반)
+    # -----------------------------
+    comments_qs = (
+        UserBookHistory.objects
+        .select_related("user")
+        .filter(
+            book=book,
+            comment__isnull=False,
         )
+        .exclude(comment__exact="")
+        .order_by("-last_read_at", "-id")
+    )
 
-    # GET
-    if request.method == 'GET':
-        serializer = ReviewSerializer(review, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    # PATCH
-    if request.method == 'PATCH':
-        serializer = ReviewSerializer(
-            review,
-            data=request.data,
-            partial=True,
-            context={'request': request},
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        return Response(
-            {
-                "message": "도서 리뷰가 수정되었습니다.",
-                "review": serializer.data,
+    comments = []
+    for h in comments_qs:
+        comments.append({
+            "comment_id": h.id,  # UserBookHistory.id
+            "user": {
+                "id": h.user.id,
+                "nickname": h.user.nickname,
+                "profile_image": h.user.profile_image,
             },
-            status=status.HTTP_200_OK
-        )
+            "created_at": h.last_read_at,
+            "content": h.comment,
+            "is_owner": (
+                request.user.is_authenticated
+                and request.user.id == h.user.id
+            ),
+        })
 
-    # DELETE
-    if request.method == 'DELETE':
-        review_tags = ReviewTag.objects.filter(review=review).select_related("tag")
+    is_wished = False
+    if request.user.is_authenticated:
+        is_wished = Wishlist.objects.filter(user=request.user, book=book).exists()
 
-        for rt in review_tags:
-            book_tag = BookTag.objects.filter(book=book, tag=rt.tag).first()
-            if book_tag:
-                BookTag.objects.filter(pk=book_tag.pk).update(
-                    tag_count=F("tag_count") - 1
+    # -----------------------------
+    # 응답
+    # -----------------------------
+    response = {
+        "message": "도서 상세 정보 조회 성공",
+        "book": {
+            "isbn": book.isbn,
+            "title": book.title,
+            "genre_path": genre_path,
+            "cover_image": book.cover_image,
+
+            "authors": authors,
+
+            "publisher": book.publisher,
+            "published_date": book.published_date,
+
+            "like_count": book.like_count,
+            "is_liked": is_liked,
+            "is_wished": is_wished,
+
+            "action_urls": {
+                "read_now_url": f"https://example.com/reader/{book.isbn}",
+                "wish_url": f"https://example.com/users/wish/{book.isbn}",
+                "purchase_url": book.purchase_link,
+            },
+
+            # 임시 더미 (추후 추천/AI 로직으로 대체)
+            "why_picked": {
+                "body": (
+                    "최근 닉네임님이 고른 책들을 보면, "
+                    "사람 사이의 따뜻함과 조용한 연민이 스며든 "
+                    "이야기들을 자주 선택하시는 느낌이었어요. "
+                    "이 책은 그런 취향과 잘 맞는 작품이에요."
                 )
+            },
 
-        review_tags.delete()
-        review.delete()
+            "book_tags": book_tags,
 
-        return Response(
-            {"message": "도서 리뷰가 성공적으로 삭제되었습니다."},
-            status=status.HTTP_200_OK
-        )
-    
+            "description": book.full_descript,
+
+            "comments": comments,
+            "comment_count": len(comments),
+        }
+    }
+
+    return Response(response, status=status.HTTP_200_OK)
+
 @api_view(["POST"])
+@authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
 def book_like_toggle(request, isbn):
-    user = request.user
-    book = get_object_or_404(Book, isbn=isbn)
-
-    # 해당 유저의 책 기록 가져오기 or 생성
-    history, created = UserBookHistory.objects.get_or_create(
-        user=user,
-        book=book,
-        defaults={"like": True},  # 최초 생성 시 좋아요된 상태로
-    )
-
-    # 방금 생성된 경우 → 좋아요 새로 등록
-    if created:
-        book.like_count += 1
-        book.save(update_fields=["like_count"])
-
+    # 1. 책 조회
+    try:
+        book = Book.objects.get(isbn=isbn)
+    except Book.DoesNotExist:
         return Response(
-            {
-                "message": "좋아요가 등록되었습니다.",
-                "is_liked": True,
-                "like_count": book.like_count,
-            },
-            status=status.HTTP_201_CREATED,
+            {"message": "도서를 찾을 수 없습니다."},
+            status=status.HTTP_404_NOT_FOUND,
         )
 
-    # 이미 기록이 있는 경우 → 토글
-    if history.like:
-        # 좋아요 취소
-        history.like = False
-        history.save(update_fields=["like"])
+    with transaction.atomic():
+        like_qs = UserBookLike.objects.select_for_update().filter(
+            user=request.user,
+            book=book
+        )
 
-        book.like_count -= 1
-        book.save(update_fields=["like_count"])
+        # 2. 이미 좋아요 상태 → 취소
+        if like_qs.exists():
+            like_qs.delete()
+            Book.objects.filter(
+                isbn=book.isbn,
+                like_count__gt=0
+            ).update(like_count=F("like_count") - 1)
 
+            book.refresh_from_db(fields=["like_count"])
+            return Response(
+                {
+                    "message": "좋아요 상태가 변경되었습니다.",
+                    "like_count": book.like_count,
+                    "is_liked": False,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        # 3. 좋아요 안 한 상태 → 생성
+        UserBookLike.objects.create(user=request.user, book=book)
+        Book.objects.filter(isbn=book.isbn).update(
+            like_count=F("like_count") + 1
+        )
+
+    book.refresh_from_db(fields=["like_count"])
+    return Response(
+        {
+            "message": "좋아요 상태가 변경되었습니다.",
+            "like_count": book.like_count,
+            "is_liked": True,
+        },
+        status=status.HTTP_200_OK,
+    )
+
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def book_wishlist_toggle(request, isbn):
+    # 1) 책 존재 확인
+    try:
+        book = Book.objects.get(isbn=isbn)
+    except Book.DoesNotExist:
+        return Response(
+            {"message": "도서를 찾을 수 없습니다."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # 2) 토글
+    with transaction.atomic():
+        qs = Wishlist.objects.select_for_update().filter(
+            user=request.user,
+            book=book
+        )
+
+        # 이미 찜 상태 -> 삭제
+        if qs.exists():
+            qs.delete()
+            return Response(
+                {
+                    "message": "찜 상태가 변경되었습니다.",
+                    "is_wished": False,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        # 찜 안 한 상태 -> 추가
+        Wishlist.objects.create(user=request.user, book=book)
         return Response(
             {
-                "message": "좋아요가 취소되었습니다.",
-                "is_liked": False,
-                "like_count": book.like_count,
+                "message": "찜 상태가 변경되었습니다.",
+                "is_wished": True,
             },
             status=status.HTTP_200_OK,
         )
-    else:
-        # 좋아요 등록
-        history.like = True
-        history.save(update_fields=["like"])
 
-        book.like_count += 1
-        book.save(update_fields=["like_count"])
+def normalize_tag_name(name: str) -> str:
+    # 최소 정규화(추후 확장 가능)
+    return name.strip().lower().replace(" ", "")
 
+def resolve_canonical_tag(tag: Tag) -> Tag | None:
+    """
+    - BLOCKED: 사용 불가(None 반환)
+    - MERGED: canonical로 치환
+    - ACTIVE: 그대로 사용
+    """
+    if getattr(tag, "status", "ACTIVE") == "BLOCKED":
+        return None
+    if getattr(tag, "status", "ACTIVE") == "MERGED" and getattr(tag, "canonical", None):
+        return tag.canonical
+    return tag
+
+@api_view(["POST", "PUT"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def book_comment(request, isbn):
+    # -----------------------------
+    # 1) Book 조회
+    # -----------------------------
+    try:
+        book = Book.objects.get(isbn=isbn)
+    except Book.DoesNotExist:
         return Response(
-            {
-                "message": "좋아요가 등록되었습니다.",
-                "is_liked": True,
-                "like_count": book.like_count,
-            },
-            status=status.HTTP_201_CREATED,
+            {"message": "도서를 찾을 수 없습니다."},
+            status=status.HTTP_404_NOT_FOUND,
         )
 
+    # -----------------------------
+    # 2) content 검증 (필수, 280자)
+    # -----------------------------
+    content = (request.data.get("content") or "").strip()
+
+    if not content:
+        return Response(
+            {"message": "코멘트 내용은 필수입니다."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if len(content) > MAX_COMMENT_LENGTH:
+        return Response(
+            {"message": f"코멘트는 최대 {MAX_COMMENT_LENGTH}자까지 작성할 수 있습니다."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # -----------------------------
+    # 3) 유저당 1개 코멘트 제한 (이미 comment가 있으면 409)
+    # -----------------------------
+    already = (
+        UserBookHistory.objects
+        .filter(user=request.user, book=book)
+        .exclude(comment__isnull=True)
+        .exclude(comment__exact="")
+        .exists()
+    )
+    if already:
+        return Response(
+            {"message": "이미 이 도서에 코멘트를 작성하셨습니다."},
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    tags_payload = request.data.get("tags") or {}
+    existing_tag_ids = tags_payload.get("existing_tag_ids") or []
+    new_tag_names = tags_payload.get("new_tag_names") or []
+
+    now = timezone.now()
+
+    with transaction.atomic():
+        # -----------------------------
+        # 4) UserBookHistory 생성/갱신
+        #    - 기존 기록이 있으면 재사용, 없으면 생성
+        # -----------------------------
+        history, created = UserBookHistory.objects.get_or_create(
+            user=request.user,
+            book=book,
+            defaults={
+                "started_at": now,
+                "progress_percent": 0.0,
+            },
+        )
+        # started_at이 비어있을 수 있으면 방어(데이터 꼬임 대비)
+        if not history.started_at:
+            history.started_at = now
+
+        history.comment = content
+        history.last_read_at = now
+        history.save()
+
+        # -----------------------------
+        # 5) 태그 처리 유틸: BookTag 카운트 증가 + Tag 전체 카운트 증가
+        # -----------------------------
+        def apply_tag(tag_obj: Tag):
+            canonical = resolve_canonical_tag(tag_obj)
+            if canonical is None:
+                return
+
+            # BookTag 없으면 생성(사용자 태그는 base_count=0)
+            bt, _ = BookTag.objects.get_or_create(
+                book=book,
+                tag=canonical,
+                defaults={
+                    "base_count": 0,
+                    "user_count": 0,
+                    "tag_count": 0,
+                },
+            )
+
+            # book 기준 누적
+            BookTag.objects.filter(pk=bt.pk).update(
+                user_count=F("user_count") + 1,
+                tag_count=F("tag_count") + 1,
+            )
+
+            # tag 전체 누적
+            Tag.objects.filter(pk=canonical.pk).update(
+                global_count=F("global_count") + 1
+            )
+
+        # -----------------------------
+        # 6) 기존 태그 ID 적용
+        # -----------------------------
+        if isinstance(existing_tag_ids, list):
+            for tid in existing_tag_ids:
+                try:
+                    tag_obj = Tag.objects.get(id=tid)
+                except Tag.DoesNotExist:
+                    continue
+                apply_tag(tag_obj)
+
+        # -----------------------------
+        # 7) 신규 태그 이름 생성 + 적용
+        # -----------------------------
+        if isinstance(new_tag_names, list):
+            for raw_name in new_tag_names:
+                name = (raw_name or "").strip()
+                if not name:
+                    continue
+
+                norm = normalize_tag_name(name)
+
+                # 이미 같은 normalized가 있으면 그걸 재사용하는 편이 정합성에 유리
+                tag_obj = Tag.objects.filter(normalized=norm).first()
+                if tag_obj is None:
+                    tag_obj = Tag.objects.create(
+                        name=name,
+                        normalized=norm,
+                        status="ACTIVE",
+                        global_count=0,
+                    )
+
+                apply_tag(tag_obj)
+
+    return Response(
+        {"message": "도서 코멘트가 등록되었습니다."},
+        status=status.HTTP_201_CREATED,
+    )
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def add_book_to_library(request, isbn):
+    # 1) Book 존재 확인
+    try:
+        book = Book.objects.get(isbn=isbn)
+    except Book.DoesNotExist:
+        return error_response("존재하지 않는 도서입니다.", "BOOK_NOT_FOUND", 404)
+
+    # 2) 이미 서재에 있는지 확인
+    if Library.objects.filter(user=request.user, book=book).exists():
+        return error_response("이미 서재에 추가된 도서입니다.", "ALREADY_IN_LIBRARY", 409)
+
+    # 3) Library 생성
+    library = Library.objects.create(
+        user=request.user,
+        book=book,
+        is_downloaded=False,
+        book_expiration_date=timezone.now() + timedelta(days=14),
+    )
+
+    # 4) UserBookHistory 초기 생성 (이어읽기 기반)
+    UserBookHistory.objects.create(
+        user=request.user,
+        book=book,
+        started_at=timezone.now(),
+        current_location=0,
+        progress_percent=0.0,
+        last_read_at=None,
+    )
+
+    # 5) 응답
+    return Response(
+        {
+            "message": "도서가 내 서재에 추가되었습니다.",
+            "library": {
+                "isbn": book.isbn,
+                "title": book.title,
+                "added_at": library.added_at.isoformat(),
+                "is_downloaded": library.is_downloaded,
+            },
+        },
+        status=201,
+    )
+
+def extract_text_from_epub(epub_path: str) -> str:
+    book = epub.read_epub(epub_path)
+
+    chunks = []
+    for item in book.get_items():
+        # 본문 문서만 추출 (ITEM_DOCUMENT)
+        # ebooklib에서 문서 타입이 9인 케이스가 일반적
+        if item.get_type() == 9:
+            soup = BeautifulSoup(item.get_content(), "html.parser")
+            text = soup.get_text(separator="\n", strip=True)
+            if text:
+                chunks.append(text)
+
+    return "\n\n".join(chunks)
+
+# --------------------------
+# Bookviews
+# --------------------------
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def bookview_content(request, isbn):
+    # 1) query params 파싱
+    try:
+        from_pos = int(request.query_params.get("from", "0"))
+        limit = int(request.query_params.get("limit", "1000"))
+    except ValueError:
+        return error_response("from, limit은 정수여야 합니다.", "INVALID_QUERY", 400)
+
+    if from_pos < 0:
+        return error_response("from은 0 이상이어야 합니다.", "INVALID_QUERY", 400)
+
+    # limit 안전장치 (너무 큰 요청 방지)
+    if limit <= 0 or limit > 5000:
+        return error_response("limit은 1~5000 사이여야 합니다.", "INVALID_QUERY", 400)
+
+    # 2) Book 존재
+    try:
+        book = Book.objects.get(isbn=isbn)
+    except Book.DoesNotExist:
+        return error_response("존재하지 않는 도서입니다.", "BOOK_NOT_FOUND", 404)
+
+    # 3) 권한/만료 체크 (Library 기반)
+    try:
+        library = Library.objects.get(user=request.user, book=book)
+    except Library.DoesNotExist:
+        return error_response("읽기 권한이 없습니다.", "NOT_IN_LIBRARY", 403)
+
+    now = timezone.now()
+    if library.book_expiration_date and library.book_expiration_date <= now:
+        return error_response("열람 기간이 만료되었습니다.", "EXPIRED", 403)
+
+    # 4) epub 파일 경로 결정
+    # book.epub_file에 "epubs/978....epub" 같은 상대경로 저장
+    epub_rel = book.epub_file  # 현재 필드명 유지 (URLField라도 로컬경로 문자열이 들어있다는 가정)
+    epub_path = os.path.join(settings.MEDIA_ROOT, epub_rel)
+
+    if not os.path.exists(epub_path):
+        return error_response("EPUB 파일을 찾을 수 없습니다.", "EPUB_NOT_FOUND", 404)
+
+    # 5) epub -> 전체 텍스트
+    try:
+        full_text = extract_text_from_epub(epub_path)
+    except Exception:
+        return error_response("EPUB 파싱에 실패했습니다.", "EPUB_PARSE_FAILED", 500)
+
+    total_length = len(full_text)
+    if from_pos > total_length:
+        return error_response("from이 본문 길이를 초과했습니다.", "OUT_OF_RANGE", 416)
+
+    # 6) 슬라이싱
+    end_pos = min(from_pos + limit, total_length)
+    content = full_text[from_pos:end_pos]
+
+    has_more = end_pos < total_length
+    next_from = end_pos if has_more else None
+
+    # 7) 응답
+    return Response(
+        {
+            "message": "도서 본문 조회 성공",
+            "content": {
+                "isbn": book.isbn,
+                "from": from_pos,
+                "limit": limit,
+                "to": end_pos,
+                "location_unit": "char",
+                "total_length": total_length,
+                "has_more": has_more,
+                "next_from": next_from,
+                "text": content,
+            },
+        },
+        status=200,
+    )
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def bookview_meta(request, isbn):
+    # 1) Book 존재 확인
+    try:
+        book = Book.objects.get(isbn=isbn)
+    except Book.DoesNotExist:
+        return error_response("존재하지 않는 도서입니다.", "BOOK_NOT_FOUND", 404)
+
+    # 2) 서재(Library) 확인 = 읽기 권한 확인
+    try:
+        library = Library.objects.get(user=request.user, book=book)
+    except Library.DoesNotExist:
+        return error_response("읽기 권한이 없습니다.", "NOT_IN_LIBRARY", 403)
+
+    # 3) 만료 체크
+    now = timezone.now()
+    if library.book_expiration_date is not None and library.book_expiration_date <= now:
+        return error_response("열람 기간이 만료되었습니다.", "EXPIRED", 403)
+
+    # 4) 최근 UserBookHistory 1개 가져오기
+    # - last_read_at이 null일 수도 있어서 started_at로 보조 정렬
+    history = (
+        UserBookHistory.objects
+        .filter(user=request.user, book=book)
+        .order_by("-last_read_at", "-started_at")
+        .first()
+    )
+
+    # 5) viewer 초기값 구성
+    if history and history.current_location is not None:
+        initial_location = int(history.current_location)
+    else:
+        initial_location = 0
+
+    if history:
+        progress_percent = float(history.progress_percent or 0.0)
+        last_read_at = history.last_read_at.isoformat() if history.last_read_at else None
+        started_at = history.started_at.isoformat() if history.started_at else None
+        finished_at = history.finished_at.isoformat() if history.finished_at else None
+    else:
+        progress_percent = 0.0
+        last_read_at = None
+        started_at = None
+        finished_at = None
+
+    # 6) progress_percent 범위 안전 처리(0~100)
+    if progress_percent < 0:
+        progress_percent = 0.0
+    if progress_percent > 100:
+        progress_percent = 100.0
+
+    # 7) 응답 (뷰어 초기화 메타)
+    return Response(
+        {
+            "message": "도서 뷰 메타 조회 성공",
+            "bookview": {
+                "book": {
+                    "isbn": book.isbn,
+                    "title": book.title,
+                    "subtitle": book.subtitle,
+                    "publisher": book.publisher,
+                    "cover_image": book.cover_image,
+                    "lang": book.lang,
+                    "page_count": book.page_count,
+                    "published_date": book.published_date.isoformat()
+                    if book.published_date
+                    else None,
+                    "toc": book.toc,
+                },
+                "permission": {
+                    "can_read": True,
+                    "reason": None,
+                },
+                "viewer": {
+                    "initial_location": initial_location,
+                    "location_unit": "char",
+                    "progress_percent": progress_percent,
+                },
+                "reading_state": {
+                    "started_at": started_at,
+                    "finished_at": finished_at,
+                    "last_read_at": last_read_at,
+                    "current_location": initial_location,
+                },
+                "library": {
+                    "is_downloaded": library.is_downloaded,
+                    "book_expiration_date": library.book_expiration_date.isoformat()
+                    if library.book_expiration_date
+                    else None,
+                    "added_at": library.added_at.isoformat() if library.added_at else None,
+                },
+                "drm": {
+                    "allow_copy": False,
+                    "allow_download": False,
+                    "allow_screenshot": False,
+                },
+                "server_time": now.isoformat(),
+            },
+        },
+        status=200,
+    )
+
+# --------------------------
+# Main
+# --------------------------
+def _normalize_reading_status_for_user(user, inactive_days=30, min_days_before_stop=3):
+    """
+    메인 조회 시점에만 실행하는 가벼운 정리 로직(on-demand).
+    - READING인데 N일 이상 활동이 없으면 STOPPED로 전환
+    - started_at이 너무 최근이면(예: 3일 이내) STOPPED 제외(안전장치)
+    """
+    now = timezone.now()
+    stop_cutoff = now - timedelta(days=inactive_days)
+    min_started_cutoff = now - timedelta(days=min_days_before_stop)
+
+    qs = UserBookHistory.objects.filter(user=user, status=UserBookHistory.Status.READING)
+
+    for h in qs:
+        # started_at이 너무 최근이면 중단 처리하지 않음
+        if h.started_at and h.started_at > min_started_cutoff:
+            continue
+
+        # last_read_at이 있으면 last_read_at 기준, 없으면 started_at 기준
+        base_time = h.last_read_at or h.started_at
+
+        if base_time and base_time <= stop_cutoff:
+            h.status = UserBookHistory.Status.STOPPED
+            h.save(update_fields=["status", "updated_at"])
 
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def main_current_reading(request):
+    try:
+        # 1) 오래된 READING 정리 (정합성 확보)
+        _normalize_reading_status_for_user(
+            request.user,
+            inactive_days=30,        # 정책값: 30일 미접속/미열람이면 중단 처리
+            min_days_before_stop=3,  # 안전장치: 시작한지 3일 이내는 중단 제외
+        )
 
+        # 2) 지금 읽는 책 선정: last_read_at 최신 1권, 동률이면 started_at
+        history = (
+            UserBookHistory.objects
+            .select_related("book")
+            .filter(user=request.user, status=UserBookHistory.Status.READING)
+            .order_by("-last_read_at", "-started_at", "-id")
+            .first()
+        )
 
+        # 3) 없으면 200 + null
+        if history is None:
+            return Response(
+                {
+                    "message": "지금 읽는 책이 없습니다.",
+                    "current_reading_book": None,
+                },
+                status=status.HTTP_200_OK,
+            )
 
-
-
-
-
+        serializer = CurrentReadingBookSerializer(history)
+        return Response(
+            {
+                "message": "지금 읽는 책 조회 성공",
+                "current_reading_book": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+    
+    except Exception:
+        return Response(
+            {
+                "message": "서버 오류가 발생했습니다.",
+                "error": {"code": "INTERNAL_SERVER_ERROR"},
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 
