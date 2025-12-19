@@ -9,9 +9,10 @@ from .serializers import (
     ColdStartNicknameSerializer,
     ColdStartTagsSerializer,
     ColdStartBooksSerializer,
+    AccountHighlightListSerializer,
 )
 
-from api.models import Tag, Book
+from api.models import Tag, Book, Highlight
 from .models import Trait
 
 def err(message, code, http_status):
@@ -137,4 +138,94 @@ def coldstart_books(request):
         {"message": "선호하는 책이 성공적으로 설정되었습니다."},
         status=status.HTTP_200_OK,
     )
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def highlights_list(request):
+    user = request.user
+
+    # --- Query params (optional) ---
+    try:
+        limit = int(request.GET.get("limit", 20))
+        offset = int(request.GET.get("offset", 0))
+    except ValueError:
+        return Response(
+            {
+                "message": "요청 파라미터가 올바르지 않습니다.",
+                "error": {"code": "INVALID_QUERY"},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if limit < 1 or limit > 50:
+        return Response(
+            {
+                "message": "limit은 1~50 사이여야 합니다.",
+                "error": {"code": "INVALID_LIMIT"},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if offset < 0:
+        return Response(
+            {
+                "message": "offset은 0 이상이어야 합니다.",
+                "error": {"code": "INVALID_OFFSET"},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # --- Queryset ---
+    qs = (
+        Highlight.objects
+        .select_related("book")
+        .filter(user=user)
+        .order_by("-created_at")
+    )
+
+    total_count = qs.count()
+    items = qs[offset : offset + limit]
+
+    highlights = []
+    for h in items:
+        highlights.append(
+            {
+                "highlight_id": h.id,
+
+                # book 정보
+                "isbn": getattr(h.book, "isbn", None),
+                "book_title": getattr(h.book, "title", ""),
+                "cover_image": getattr(h.book, "cover_image", None),
+
+                # highlight 본문 + 좌표
+                "content": h.content,
+                "start_page": h.start_page,
+                "end_page": h.end_page,
+                "start_offset": h.start_offset,
+                "end_offset": h.end_offset,
+
+                "created_at": h.created_at,
+            }
+        )
+
+    return Response(
+        {
+            "message": "내 하이라이트 목록 조회 성공",
+            "meta": {
+                "total_count": total_count,
+                "limit": limit,
+                "offset": offset,
+                "has_next": (offset + limit) < total_count,
+            },
+            "highlights": highlights,
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+
+
+
+
+
 

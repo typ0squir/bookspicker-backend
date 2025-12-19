@@ -7,4 +7,5 @@ urlpatterns = [
     path("coldstart/tags/", views.coldstart_tags),
     path("coldstart/books/", views.coldstart_books),
 
+    path("highlights/", views.highlights_list),
 ]

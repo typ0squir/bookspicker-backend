@@ -36,3 +36,16 @@ class ColdStartBooksSerializer(serializers.Serializer):
         allow_empty=False,
     )
 
+class AccountHighlightListSerializer(serializers.Serializer):
+    highlight_id = serializers.IntegerField()
+    isbn = serializers.CharField()
+    book_title = serializers.CharField()
+    cover_image = serializers.CharField(allow_null=True, required=False)
+
+    # 하이라이트 좌표/진행 관련
+    start_location = serializers.IntegerField()
+    end_location = serializers.IntegerField()
+
+    # 하이라이트 본문
+    content = serializers.CharField(allow_blank=True, required=False)
+    created_at = serializers.DateTimeField()

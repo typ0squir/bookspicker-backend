@@ -1,0 +1,72 @@
+[
+  {
+    "model": "api.highlight",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "book": "9788933830529",
+      "content": "이 문장은 읽을수록 마음에 오래 남는다.",
+      "start_page": 45,
+      "end_page": 45,
+      "start_offset": 120,
+      "end_offset": 312,
+      "created_at": "2025-12-18T23:30:12Z"
+    }
+  },
+  {
+    "model": "api.highlight",
+    "pk": 2,
+    "fields": {
+      "user": 1,
+      "book": "9788933830529",
+      "content": "주인공의 감정이 폭발하는 지점.",
+      "start_page": 102,
+      "end_page": 103,
+      "start_offset": 980,
+      "end_offset": 1450,
+      "created_at": "2025-12-18T23:35:44Z"
+    }
+  },
+  {
+    "model": "api.highlight",
+    "pk": 3,
+    "fields": {
+      "user": 35,
+      "book": "9788933830529",
+      "content": "이 장면 때문에 이 책을 추천하고 싶다.",
+      "start_page": 210,
+      "end_page": 210,
+      "start_offset": 55,
+      "end_offset": 402,
+      "created_at": "2025-12-18T23:41:10Z"
+    }
+  },
+  {
+    "model": "api.highlight",
+    "pk": 4,
+    "fields": {
+      "user": 35,
+      "book": "9788954438629",
+      "content": "조용하지만 오래 잔상으로 남는 문장.",
+      "start_page": 12,
+      "end_page": 12,
+      "start_offset": 30,
+      "end_offset": 198,
+      "created_at": "2025-12-19T00:05:03Z"
+    }
+  },
+  {
+    "model": "api.highlight",
+    "pk": 5,
+    "fields": {
+      "user": 1,
+      "book": "9788954438629",
+      "content": "이 부분에서 책의 주제가 또렷해진다.",
+      "start_page": 88,
+      "end_page": 89,
+      "start_offset": 640,
+      "end_offset": 910,
+      "created_at": "2025-12-19T00:12:27Z"
+    }
+  }
+]
