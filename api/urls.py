@@ -15,6 +15,7 @@ urlpatterns = [
     # bookviews
     path("bookviews/<str:isbn>/", views.bookview_meta),
     path("bookviews/<str:isbn>/content/", views.bookview_content),
+    path("bookviews/<str:isbn>/progress/", views.bookview_progress),
 
     # main
     path("main/current-reading/", views.main_current_reading),

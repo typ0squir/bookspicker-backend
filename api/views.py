@@ -927,6 +927,104 @@ def bookview_meta(request, isbn):
         status=200,
     )
 
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def bookview_progress(request, isbn):
+    # 1) 책 존재 확인 (Book pk=isbn)
+    try:
+        book = Book.objects.get(isbn=isbn)
+    except Book.DoesNotExist:
+        return Response(
+            {
+                "message": "도서를 찾을 수 없습니다.",
+                "error": {"code": "BOOK_NOT_FOUND"},
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # 2) 요청 값 파싱
+    location = request.data.get("location")
+    location_unit = request.data.get("location_unit")
+    progress_percent = request.data.get("progress_percent")
+
+    # 3) 유효성 검사
+    # location
+    if location is None:
+        return Response(
+            {"message": "location은 필수입니다.", "error": {"code": "VALIDATION_ERROR", "field": "location"}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        location = int(location)
+    except (TypeError, ValueError):
+        return Response(
+            {"message": "location은 정수여야 합니다.", "error": {"code": "VALIDATION_ERROR", "field": "location"}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if location < 0:
+        return Response(
+            {"message": "location은 0 이상이어야 합니다.", "error": {"code": "VALIDATION_ERROR", "field": "location"}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # location_unit
+    if not location_unit:
+        return Response(
+            {"message": "location_unit은 필수입니다.", "error": {"code": "VALIDATION_ERROR", "field": "location_unit"}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if location_unit not in ["char", "page", "byte"]:  # TODO: 뷰어 기준으로 허용값 조정 필요
+        return Response(
+            {"message": "location_unit 값이 올바르지 않습니다.", "error": {"code": "VALIDATION_ERROR", "field": "location_unit"}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # progress_percent
+    if progress_percent is None:
+        return Response(
+            {"message": "progress_percent는 필수입니다.", "error": {"code": "VALIDATION_ERROR", "field": "progress_percent"}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        progress_percent = int(progress_percent)
+    except (TypeError, ValueError):
+        return Response(
+            {"message": "progress_percent는 정수여야 합니다.", "error": {"code": "VALIDATION_ERROR", "field": "progress_percent"}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if progress_percent < 0 or progress_percent > 100:
+        return Response(
+            {"message": "progress_percent는 0~100 범위여야 합니다.", "error": {"code": "VALIDATION_ERROR", "field": "progress_percent"}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # 4) UserBookHistory upsert (없으면 생성, 있으면 업데이트)
+    user = request.user
+    history, created = UserBookHistory.objects.get_or_create(user=user, book=book)
+
+    # 5) 저장
+    history.current_location = location
+    history.location_unit = location_unit
+    history.progress_percent = progress_percent
+    history.last_read_at = timezone.now()
+    history.save()
+
+    return Response(
+        {
+            "message": "읽기 위치가 업데이트되었습니다.",
+            "viewer": {
+                "isbn": book.isbn,
+                "last_location": history.current_location,
+                "location_unit": history.location_unit,
+                "progress_percent": history.progress_percent,
+                "last_read_at": history.last_read_at,
+            },
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
 # --------------------------
 # Main
 # --------------------------

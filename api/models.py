@@ -245,6 +245,7 @@ class UserBookHistory(models.Model):
     # 레코드 관리용
     created_at = models.DateTimeField(auto_now_add=True)  
     updated_at = models.DateTimeField(auto_now=True)
+    location_unit = models.CharField(max_length=10, default="char")
 
     class Meta:
         indexes = [

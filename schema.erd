@@ -4,13 +4,13 @@
   "settings": {
     "width": 2000,
     "height": 2000,
-    "scrollTop": -781.5886,
-    "scrollLeft": -800,
+    "scrollTop": -970.5886,
+    "scrollLeft": -222.4933,
     "zoomLevel": 0.82,
     "show": 431,
     "database": 4,
     "databaseName": "",
-    "canvasType": "ERD",
+    "canvasType": "@dineug/erd-editor/builtin-generator-code",
     "language": 1,
     "tableNameCase": 4,
     "columnNameCase": 2,
@@ -241,6 +241,7 @@
           "80IdWTtBsx8ibmR2jxFFP",
           "H9PWYrYCQPnJfi6MiXiNj",
           "XrONC5xGkyEnNnl1OtKFF",
+          "WGk_aSao8hKV8zBFUrcPE",
           "qxmu91TIEWUpX072LZsd6",
           "bHV0KnD1KQyXGyAt7i5at"
         ],
@@ -256,6 +257,7 @@
           "TMHD2iA3_mgy-yGoUCWLx",
           "H9PWYrYCQPnJfi6MiXiNj",
           "XrONC5xGkyEnNnl1OtKFF",
+          "WGk_aSao8hKV8zBFUrcPE",
           "qxmu91TIEWUpX072LZsd6",
           "bHV0KnD1KQyXGyAt7i5at"
         ],
@@ -268,7 +270,7 @@
           "color": ""
         },
         "meta": {
-          "updateAt": 1766071857183,
+          "updateAt": 1766294696877,
           "createAt": 1763453485757
         }
       },
@@ -3251,6 +3253,26 @@
           "updateAt": 1766130700292,
           "createAt": 1766130678265
         }
+      },
+      "WGk_aSao8hKV8zBFUrcPE": {
+        "id": "WGk_aSao8hKV8zBFUrcPE",
+        "tableId": "9SvRErMSvjr7LoLO2dIs6",
+        "name": "location_unit",
+        "comment": "뷰어 종류 별 위치 구분 인자",
+        "dataType": "CHAR",
+        "default": "char",
+        "options": 8,
+        "ui": {
+          "keys": 0,
+          "widthName": 70,
+          "widthComment": 150,
+          "widthDataType": 60,
+          "widthDefault": 60
+        },
+        "meta": {
+          "updateAt": 1766294692427,
+          "createAt": 1766294664396
+        }
       }
     },
     "relationshipEntities": {
@@ -3497,7 +3519,7 @@
           "columnIds": [
             "qxmu91TIEWUpX072LZsd6"
           ],
-          "x": 348.4656,
+          "x": 358.9656,
           "y": 1087.6373,
           "direction": 4
         },
@@ -3525,8 +3547,8 @@
           "columnIds": [
             "bHV0KnD1KQyXGyAt7i5at"
           ],
-          "x": 592.4656,
-          "y": 1223.6373,
+          "x": 613.4656,
+          "y": 1235.6373,
           "direction": 2
         },
         "meta": {
