@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.conf import settings
 
@@ -64,33 +65,18 @@ class GenreChild(models.Model):
         return f"{self.parent.name} > {self.name}"
     
 class Book(models.Model):
+    # ===== 도서 메타 정보 =====
     isbn = models.CharField(primary_key=True, max_length=13)
     title = models.CharField(max_length=255)
     subtitle = models.CharField(max_length=255, blank=True, null=True)
     publisher = models.CharField(max_length=100)
-
-    one_line_descript = models.CharField(max_length=255)
-    two_line_descript = models.CharField(max_length=500)
-    full_descript = models.TextField()
-
-    cover_image = models.URLField()
-    epub_file = models.URLField()
+    toc = models.JSONField()
 
     published_date = models.DateField()
     page_count = models.PositiveIntegerField()
     series_name = models.CharField(max_length=100, blank=True, null=True)
     lang = models.CharField(max_length=20)
 
-    top_tags = models.JSONField(default=list, blank=True)
-    top_tags_updated_at = models.DateTimeField(null=True, blank=True)
-
-    # ===== 집계 필드 (배치로 갱신) =====
-    readed_num_week = models.PositiveIntegerField(default=0)
-    readed_num_month = models.PositiveIntegerField(default=0)
-    like_count = models.PositiveIntegerField(default=0)
-    is_steady = models.BooleanField(default=False)
-
-    toc = models.JSONField()
     purchase_link = models.URLField(blank=True, null=True)
 
     genre = models.ForeignKey(
@@ -100,9 +86,56 @@ class Book(models.Model):
         related_name="book_list",
     )   # on_delete=models.SET_NULL -> 장르가 사라져도 책은 사라지면 안 되기 때문
 
+    # ===== 업로드 리스트 =====
+    cover_image = models.URLField()
+    epub_file = models.URLField()
+
+    # ===== 집계 필드 (배치로 갱신) =====
+    readed_num_week = models.PositiveIntegerField(default=0)
+    readed_num_month = models.PositiveIntegerField(default=0)
+    like_count = models.PositiveIntegerField(default=0)
+    is_steady = models.BooleanField(default=False)
+
+    # ===== AI GENERATOR =====
+    abstract_descript = models.CharField(max_length=500, null=True, blank=True)
+    full_descript = models.TextField(null=True, blank=True)
+    recommendation_refer = models.JSONField(default=list, blank=True)
+    top_tags = models.JSONField(default=list, blank=True)
+    top_tags_updated_at = models.DateTimeField(null=True, blank=True)
+
     def __str__(self):
         return self.title
 
+class BookAIGenerationTask(models.Model):
+    class Status(models.TextChoices):
+        RUNNING = "RUNNING", "실행중"
+        DONE = "DONE", "완료"
+        FAILED = "FAILED", "실패"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    book = models.ForeignKey(
+        "Book",
+        on_delete=models.CASCADE,
+        related_name="ai_task_list",
+    )
+
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.RUNNING)
+
+    # 요청 옵션: ["one_line", "two_line", "full", "tags", "refer"] 같은 리스트 저장
+    requested = models.JSONField(default=list, blank=True)
+
+    # 결과 스냅샷(완료 시 채움)
+    result = models.JSONField(null=True, blank=True)
+    error_message = models.TextField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["book", "status", "-created_at"]),
+        ]
 
 # --------------------------
 # Tag / BookTag

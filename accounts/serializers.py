@@ -1,8 +1,13 @@
 from rest_framework import serializers
+from datetime import date
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
+
+# --------------------------
+# ColdStart
+# --------------------------
 class ColdStartNicknameSerializer(serializers.Serializer):
     nickname = serializers.CharField()
 
@@ -36,16 +41,75 @@ class ColdStartBooksSerializer(serializers.Serializer):
         allow_empty=False,
     )
 
-class AccountHighlightListSerializer(serializers.Serializer):
-    highlight_id = serializers.IntegerField()
+class ColdStartProfileInfoInnerSerializer(serializers.Serializer):
+    
+    birth_year = serializers.IntegerField(required=False)
+    sex = serializers.CharField(required=False)
+    books_per_month = serializers.IntegerField(required=False)
+
+    def validate_birth_year(self, value):
+        # 현실적인 범위로 제한
+        if value < 1900 or value > date.today().year:
+            raise serializers.ValidationError("birth_year 범위가 올바르지 않습니다.")
+        return value
+
+    def validate_sex(self, value):
+        v = str(value).strip().upper()
+        allowed = ["F", "M", "N"]
+        if v not in allowed:
+            raise serializers.ValidationError("sex는 F/M/N 중 하나여야 합니다.")
+        return v
+
+    def validate_books_per_month(self, value):
+        if value < 0 or value > 300:
+            raise serializers.ValidationError("books_per_month 범위가 올바르지 않습니다.")
+        return value
+
+
+class ColdStartProfileInfoRequestSerializer(serializers.Serializer):
+    profile_info = ColdStartProfileInfoInnerSerializer()
+
+
+# --------------------------
+# Log
+# --------------------------
+class AccountCommentListItemSerializer(serializers.Serializer):
+    comment_id = serializers.IntegerField()  # = UserBookHistory.id
     isbn = serializers.CharField()
-    book_title = serializers.CharField()
-    cover_image = serializers.CharField(allow_null=True, required=False)
 
-    # 하이라이트 좌표/진행 관련
-    start_location = serializers.IntegerField()
-    end_location = serializers.IntegerField()
-
-    # 하이라이트 본문
-    content = serializers.CharField(allow_blank=True, required=False)
+    content = serializers.CharField()
     created_at = serializers.DateTimeField()
+    updated_at = serializers.DateTimeField()
+
+    status = serializers.CharField()
+    progress_percent = serializers.FloatField()
+
+    book = serializers.DictField()
+
+# --------------------------
+# Personal Info
+# --------------------------
+class NicknameUpdateSerializer(serializers.Serializer):
+    nickname = serializers.CharField()
+
+    def validate_nickname(self, value):
+        nickname = value.strip()
+
+        if nickname == "":
+            raise serializers.ValidationError("nickname은 비어있을 수 없습니다.")
+
+        if len(nickname) < 2 or len(nickname) > 20:
+            raise serializers.ValidationError("nickname은 2~20자여야 합니다.")
+
+        # 중복 검사 (본인 제외)
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+
+        qs = User.objects.filter(nickname=nickname)
+        if user and user.is_authenticated:
+            qs = qs.exclude(id=user.id)
+
+        if qs.exists():
+            raise serializers.ValidationError("이미 사용 중인 nickname입니다.")
+
+        return nickname

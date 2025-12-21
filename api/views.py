@@ -8,7 +8,7 @@ from rest_framework import status
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Count
 from django.utils import timezone
 from datetime import timedelta
 
@@ -21,9 +21,15 @@ from .models import (
     Library, UserBookHistory
 )
 
-from .serializers import CurrentReadingBookSerializer
+from .serializers import (
+    CurrentReadingBookSerializer,
+    BookCommentDetailSerializer,
+    PopularBookSerializer,
+)
 
 MAX_COMMENT_LENGTH = 280
+LIST_LIMIT = 30 # 인기 목록을 최대 30권까지만
+TOP_TAGS_LIMIT = 3
 
 def error_response(message, code, status_code):
     return Response(
@@ -446,6 +452,234 @@ def book_comment(request, isbn):
         status=status.HTTP_201_CREATED,
     )
 
+@api_view(["GET"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def book_comment_detail(request, isbn, comment_id):
+    # 1) book 확인
+    try:
+        book = Book.objects.get(isbn=isbn)
+    except Book.DoesNotExist:
+        return Response(
+            {
+                "message": "도서를 찾을 수 없습니다.",
+                "error": {"code": "BOOK_NOT_FOUND"},
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # 2) UserBookHistory에서 comment_id(pk)로 찾되 book 일치까지 강제
+    try:
+        history = (
+            UserBookHistory.objects
+            .select_related("user", "book")
+            .get(id=comment_id, book=book)
+        )
+    except UserBookHistory.DoesNotExist:
+        return Response(
+            {
+                "message": "코멘트를 찾을 수 없습니다.",
+                "error": {"code": "COMMENT_NOT_FOUND"},
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # 3) comment가 비어있는 레코드는 '코멘트'로 취급하지 않음
+    if history.comment is None or str(history.comment).strip() == "":
+        return Response(
+            {
+                "message": "코멘트를 찾을 수 없습니다.",
+                "error": {"code": "COMMENT_NOT_FOUND"},
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # 4) is_owner
+    is_owner = bool(
+        request.user.is_authenticated and history.user_id == request.user.id
+    )
+
+    payload = {
+        "comment_id": history.id,
+        "isbn": book.isbn,
+
+        "content": history.comment,
+        "created_at": history.created_at,
+        "updated_at": history.updated_at,
+
+        "is_owner": is_owner,
+
+        "user": {
+            "id": history.user.id,
+            "nickname": getattr(history.user, "nickname", None) or getattr(history.user, "username", ""),
+            "profile_image": getattr(history.user, "profile_image", None),
+        },
+        "book": {
+            "isbn": book.isbn,
+            "title": getattr(book, "title", ""),
+            "cover_image": getattr(book, "cover_image", None),
+        },
+    }
+
+    serializer = BookCommentDetailSerializer(payload)
+    return Response(
+        {
+            "message": "도서 코멘트 조회 성공",
+            "comment": serializer.data,
+        },
+        status=status.HTTP_200_OK,
+    )
+
+# tag 뱃지 color picker
+def _pick_color(slug: str) -> str:
+    """
+    slug(normalized) 기반으로 항상 같은 색을 반환.
+    DB에 color 필드 추가 전까지 사용하는 정책.
+    """
+    palette = [
+        "#E57373", "#F06292", "#BA68C8", "#9575CD",
+        "#7986CB", "#64B5F6", "#4FC3F7", "#4DD0E1",
+        "#4DB6AC", "#81C784", "#AED581", "#DCE775",
+        "#FFF176", "#FFD54F", "#FFB74D", "#A1887F",
+    ]
+    acc = 0
+    for ch in slug:
+        acc = (acc * 31 + ord(ch)) % 10_000_000
+    return palette[acc % len(palette)]
+
+@api_view(["GET"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def books_popular(request):
+    q = request.GET.get("q", "weekly")
+
+    if q not in ["weekly", "monthly", "steady"]:
+        return Response(
+            {
+                "message": "잘못된 요청입니다.",
+                "error": {"code": "INVALID_QUERY_PARAM", "field": "q"},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # 1) q에 따라 Book queryset 결정
+    if q == "weekly":
+        books_qs = (
+            Book.objects
+            .filter(readed_num_week__gt=0)
+            .order_by("-readed_num_week", "-like_count")
+        )
+    elif q == "monthly":
+        books_qs = (
+            Book.objects
+            .filter(readed_num_month__gt=0)
+            .order_by("-readed_num_month", "-like_count")
+        )
+    else:  # steady
+        books_qs = (
+            Book.objects
+            .filter(is_steady=True)
+            .order_by("-readed_num_month", "-like_count")
+        )
+
+    books = list(books_qs[:LIST_LIMIT])
+    book_isbns = [b.isbn for b in books]
+
+    if not books:
+        return Response(
+            {"message": "많이 읽힌 도서 목록 조회 성공", "query": q, "items": []},
+            status=status.HTTP_200_OK,
+        )
+
+    # 2) top_tags 구성 (기존 정책 유지)
+    booktags = (
+        BookTag.objects
+        .select_related("tag", "tag__canonical")
+        .filter(book__isbn__in=book_isbns)
+        .order_by("-tag_count", "tag__name")
+    )
+
+    top_tags_map = {}
+    seen_canonical_map = {}
+
+    for bt in booktags:
+        isbn = bt.book_id
+        tag = bt.tag
+
+        if tag.status == "BLOCKED":
+            continue
+
+        canonical = (
+            tag.canonical
+            if tag.status == "MERGED" and tag.canonical_id
+            else tag
+        )
+
+        if canonical.status == "BLOCKED":
+            continue
+
+        if isbn not in top_tags_map:
+            top_tags_map[isbn] = []
+            seen_canonical_map[isbn] = set()
+
+        if canonical.id in seen_canonical_map[isbn]:
+            continue
+
+        slug = canonical.normalized
+        top_tags_map[isbn].append({
+            "id": canonical.id,
+            "name": canonical.name,
+            "slug": slug,
+            "color": _pick_color(slug),
+        })
+        seen_canonical_map[isbn].add(canonical.id)
+
+        if len(top_tags_map[isbn]) >= TOP_TAGS_LIMIT:
+            continue
+
+    # 3) is_liked 계산
+    liked_isbn_set = set()
+    if request.user.is_authenticated:
+        liked_isbn_set = set(
+            UserBookLike.objects
+            .filter(user=request.user, book__isbn__in=book_isbns)
+            .values_list("book__isbn", flat=True)
+        )
+
+    # 4) 응답 조립
+    results = []
+    for book in books:
+        isbn = book.isbn
+        results.append({
+            "isbn": isbn,
+            "title": book.title,
+            "cover_image": book.cover_image,
+            "publisher": book.publisher,
+            "abstract_descript": book.abstract_descript,
+
+            "like_count": book.like_count,
+            "top_tags": top_tags_map.get(isbn, []),
+
+            "is_liked": isbn in liked_isbn_set,
+
+            "links": {
+                "like_toggle_url": f"/books/{isbn}/likes",
+                "read_url": f"/bookviews/{isbn}",
+                "purchase_url": book.purchase_link,
+            },
+        })
+
+    serializer = PopularBookSerializer(results, many=True)
+    return Response(
+        {
+            "message": "많이 읽힌 도서 목록 조회 성공",
+            "query": q,
+            "items": serializer.data,
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 @authentication_classes([JWTAuthentication])
@@ -492,6 +726,10 @@ def add_book_to_library(request, isbn):
         status=201,
     )
 
+
+# --------------------------
+# Bookviews
+# --------------------------
 def extract_text_from_epub(epub_path: str) -> str:
     book = epub.read_epub(epub_path)
 
@@ -507,9 +745,6 @@ def extract_text_from_epub(epub_path: str) -> str:
 
     return "\n\n".join(chunks)
 
-# --------------------------
-# Bookviews
-# --------------------------
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 @authentication_classes([JWTAuthentication])
@@ -768,7 +1003,6 @@ def main_current_reading(request):
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-
 
 
 
