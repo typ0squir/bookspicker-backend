@@ -5,6 +5,7 @@ app_name = 'api'
 urlpatterns = [
     # books
     path("books/popular/", views.books_popular),
+    path("books/search/", views.books_search),
     path("books/<str:isbn>/", views.book_detail),
     path("books/<str:isbn>/likes/", views.book_like_toggle),
     path("books/<str:isbn>/wishlist/", views.book_wishlist_toggle),

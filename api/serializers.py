@@ -70,6 +70,13 @@ class PopularBookSerializer(serializers.Serializer):
     is_liked = serializers.BooleanField()
     links = serializers.DictField()
 
+class BookSearchSerializer(serializers.Serializer):
+    isbn = serializers.CharField()
+    title = serializers.CharField()
+    authors = serializers.ListField(child=serializers.CharField())
+    publisher = serializers.CharField()
+    cover_image = serializers.CharField(allow_null=True)
+    is_liked = serializers.BooleanField()
 
 
 

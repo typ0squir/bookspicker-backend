@@ -8,7 +8,7 @@ from rest_framework import status
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
-from django.db.models import F, Count
+from django.db.models import F, Q
 from django.utils import timezone
 from datetime import timedelta
 
@@ -25,11 +25,16 @@ from .serializers import (
     CurrentReadingBookSerializer,
     BookCommentDetailSerializer,
     PopularBookSerializer,
+    BookSearchSerializer,
 )
 
 MAX_COMMENT_LENGTH = 280
 LIST_LIMIT = 30 # 인기 목록을 최대 30권까지만
 TOP_TAGS_LIMIT = 3
+
+# 검색 결과 갯수 제한
+DEFAULT_LIMIT = 20
+MAX_LIMIT = 50
 
 def error_response(message, code, status_code):
     return Response(
@@ -725,6 +730,87 @@ def add_book_to_library(request, isbn):
         },
         status=201,
     )
+
+@api_view(["GET"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def books_search(request):
+    """
+    현재 검색 대상 필드
+    Book.title
+    Book.subtitle
+    Book.authors_book_list (= Author.name)
+    Book.publisher
+    """
+    query = request.GET.get("q", "").strip()
+
+    if not query:
+        return Response(
+            {
+                "message": "검색어(q)는 필수입니다.",
+                "error": {"code": "VALIDATION_ERROR", "field": "q"},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        limit = int(request.GET.get("limit", DEFAULT_LIMIT))
+    except ValueError:
+        limit = DEFAULT_LIMIT
+
+    limit = min(limit, MAX_LIMIT)
+
+    # 1) 검색 쿼리
+    books_qs = (
+        Book.objects
+        .prefetch_related("authors_book_list__author")
+        .filter(
+            Q(title__icontains=query) |
+            Q(subtitle__icontains=query) |
+            Q(publisher__icontains=query) |
+            Q(authors_book_list__author__name__icontains=query)
+        )
+        .distinct()
+        .order_by("-like_count", "title")[:limit]
+    )
+
+    # 2) 찜 여부 계산
+    liked_isbn_set = set()
+    if request.user.is_authenticated:
+        liked_isbn_set = set(
+            UserBookLike.objects
+            .filter(user=request.user, book__in=books_qs)
+            .values_list("book__isbn", flat=True)
+        )
+
+    # 3) 응답 조립
+    items = []
+    for book in books_qs:
+        authors = [
+            ab.author.name
+            for ab in book.authors_book_list.all()
+        ]
+
+        items.append({
+            "isbn": book.isbn,
+            "title": book.title,
+            "authors": authors,
+            "publisher": book.publisher,
+            "cover_image": book.cover_image,
+            "is_liked": book.isbn in liked_isbn_set,
+        })
+
+    serializer = BookSearchSerializer(items, many=True)
+
+    return Response(
+        {
+            "message": "도서 검색 성공",
+            "query": query,
+            "items": serializer.data,
+        },
+        status=status.HTTP_200_OK,
+    )
+
 
 
 # --------------------------
