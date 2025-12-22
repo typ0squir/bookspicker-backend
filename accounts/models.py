@@ -9,6 +9,8 @@ class User(AbstractUser):
     books_per_month = models.PositiveIntegerField(blank=True, null=True)
     profile_image = models.URLField(blank=True, null=True)
     is_profile_public = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
+    resigned_at = models.DateTimeField(null=True, blank=True)
 
 class Trait(models.Model):
     """

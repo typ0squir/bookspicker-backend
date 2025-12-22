@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from . import views
 
 app_name = 'accounts'
@@ -9,6 +9,7 @@ urlpatterns = [
     path("coldstart/profile_info/", views.coldstart_profile_info),
 
     path("nickname/", views.nickname_update),
+    path("resign/", views.resign),
 
     path("highlights/", views.highlights_list),
     path("comments/", views.comment_list),

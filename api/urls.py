@@ -23,4 +23,7 @@ urlpatterns = [
 
     # admin
     path("admin/books/", admin_views.admin_book_create),
+
+    # JWT 교환(exchange) 엔드포인트
+    path("auth/jwt/exchange/", views.jwt_exchange),
 ]

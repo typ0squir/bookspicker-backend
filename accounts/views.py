@@ -1,10 +1,13 @@
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
-from datetime import date
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from django.utils import timezone
+from django.contrib.auth import logout
+from api.permissions import IsActiveUser
 
 from .serializers import (
     ColdStartNicknameSerializer,
@@ -32,7 +35,7 @@ def err(message, code, http_status):
 # --------------------------
 @api_view(["POST"])
 @authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsActiveUser])
 def coldstart_nickname(request):
     serializer = ColdStartNicknameSerializer(data=request.data)
     if not serializer.is_valid():
@@ -62,7 +65,7 @@ def coldstart_nickname(request):
 
 @api_view(["POST"])
 @authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsActiveUser])
 def coldstart_tags(request):
     serializer = ColdStartTagsSerializer(data=request.data)
     if not serializer.is_valid():
@@ -108,7 +111,7 @@ def coldstart_tags(request):
 
 @api_view(["POST"])
 @authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsActiveUser])
 def coldstart_books(request):
     serializer = ColdStartBooksSerializer(data=request.data)
     if not serializer.is_valid():
@@ -149,7 +152,7 @@ def coldstart_books(request):
 
 @api_view(["POST"])
 @authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsActiveUser])
 def coldstart_profile_info(request):
     serializer = ColdStartProfileInfoRequestSerializer(data=request.data)
     if not serializer.is_valid():
@@ -195,8 +198,8 @@ def coldstart_profile_info(request):
 # Log
 # --------------------------
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
 @authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated, IsActiveUser])
 def highlights_list(request):
     user = request.user
 
@@ -278,8 +281,8 @@ def highlights_list(request):
     )
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
 @authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated, IsActiveUser])
 def comment_list(request):
     user = request.user
 
@@ -365,8 +368,8 @@ def comment_list(request):
     )
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
 @authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated, IsActiveUser])
 def booklist(request):
     """
     GET /accounts/booklist?filter=library|liked|wishlist|recent&limit=20&offset=0
@@ -565,8 +568,8 @@ def booklist(request):
 # Personal Info
 # --------------------------
 @api_view(["PATCH"])
-@permission_classes([IsAuthenticated])
 @authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated, IsActiveUser])
 def nickname_update(request):
     serializer = NicknameUpdateSerializer(data=request.data, context={"request": request})
     if not serializer.is_valid():
@@ -593,8 +596,47 @@ def nickname_update(request):
         status=status.HTTP_200_OK,
     )
 
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated, IsActiveUser])
+def resign(request):
+    """
+    요청 바디
+    {
+        "confirm": true,
+        "refresh": "<refresh_token>"
+    }
+    """
+    user = request.user
 
+    # 1) 탈퇴 확인
+    if request.data.get("confirm") is not True:
+        return Response(
+            {"message": "탈퇴 확인이 필요합니다.", "error": {"code": "CONFIRM_REQUIRED"}},
+            status=400,
+        )
 
+    # 2) refresh 블랙리스트
+    refresh_str = request.data.get("refresh")
+    if refresh_str:
+        try:
+            RefreshToken(refresh_str).blacklist()
+        except TokenError:
+            # 이미 만료 / 잘못된 토큰이어도 탈퇴는 진행
+            pass
+
+    # 3) 사용자 탈퇴 처리
+    user.is_active = False
+    user.resigned_at = timezone.now()
+    user.save(update_fields=["is_active", "resigned_at"])
+
+    # 4) 세션 로그아웃 (마지막)
+    logout(request)
+
+    return Response(
+        {"message": "회원 탈퇴가 완료되었습니다."},
+        status=200,
+    )
 
 
 

@@ -21,6 +21,7 @@ INSTALLED_APPS = [
 
     # 3rd party
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
 
     # allauth 관련
@@ -144,6 +145,7 @@ LOGOUT_REDIRECT_URL = '/'
 
 ACCOUNT_EMAIL_VERIFICATION = "none" # 회원가입 후 이메일 인증 과정을 생략.
 ACCOUNT_LOGIN_METHODS = {"username"}    # 로그인 시 어떤 방식으로 인증할지 지정
+ACCOUNT_ADAPTER = "accounts.adapters.AccountAdapter"
 
 ACCOUNT_SIGNUP_FIELDS = [   # 회원가입 폼에 어떤 필드를 받을지 지정
     "email*",
@@ -168,7 +170,8 @@ SOCIALACCOUNT_PROVIDERS = {
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication'
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        "rest_framework.authentication.SessionAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.AllowAny",
@@ -184,6 +187,8 @@ SIMPLE_JWT = {
 
     # Authorization: Bearer <token>
     "AUTH_HEADER_TYPES": ("Bearer",),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
 MEDIA_URL = "/media/"

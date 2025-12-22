@@ -6,7 +6,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.authentication import SessionAuthentication
 from django.db import transaction
 from django.db.models import F, Q
 from django.utils import timezone
@@ -20,7 +22,7 @@ from .models import (
     UserBookHistory, UserBookLike, Wishlist,
     Library, UserBookHistory
 )
-
+from .permissions import IsActiveUser
 from .serializers import (
     CurrentReadingBookSerializer,
     BookCommentDetailSerializer,
@@ -205,7 +207,7 @@ def book_detail(request, isbn):
 
 @api_view(["POST"])
 @authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsActiveUser])
 def book_like_toggle(request, isbn):
     # 1. 책 조회
     try:
@@ -258,7 +260,7 @@ def book_like_toggle(request, isbn):
 
 @api_view(["POST"])
 @authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsActiveUser])
 def book_wishlist_toggle(request, isbn):
     # 1) 책 존재 확인
     try:
@@ -315,7 +317,7 @@ def resolve_canonical_tag(tag: Tag) -> Tag | None:
 
 @api_view(["POST", "PUT"])
 @authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsActiveUser])
 def book_comment(request, isbn):
     # -----------------------------
     # 1) Book 조회
@@ -686,8 +688,8 @@ def books_popular(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
 @authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated, IsActiveUser])
 def add_book_to_library(request, isbn):
     # 1) Book 존재 확인
     try:
@@ -811,8 +813,6 @@ def books_search(request):
         status=status.HTTP_200_OK,
     )
 
-
-
 # --------------------------
 # Bookviews
 # --------------------------
@@ -832,8 +832,8 @@ def extract_text_from_epub(epub_path: str) -> str:
     return "\n\n".join(chunks)
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
 @authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated, IsActiveUser])
 def bookview_content(request, isbn):
     # 1) query params 파싱
     try:
@@ -910,8 +910,8 @@ def bookview_content(request, isbn):
     )
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
 @authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated, IsActiveUser])
 def bookview_meta(request, isbn):
     # 1) Book 존재 확인
     try:
@@ -1014,8 +1014,8 @@ def bookview_meta(request, isbn):
     )
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
 @authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated, IsActiveUser])
 def bookview_progress(request, isbn):
     # 1) 책 존재 확인 (Book pk=isbn)
     try:
@@ -1140,8 +1140,8 @@ def _normalize_reading_status_for_user(user, inactive_days=30, min_days_before_s
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
 @authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated, IsActiveUser])
 def main_current_reading(request):
     try:
         # 1) 오래된 READING 정리 (정합성 확보)
@@ -1188,7 +1188,18 @@ def main_current_reading(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-
+# --------------------------
+# allauth with JWT
+# --------------------------
+@permission_classes([IsAuthenticated])
+@api_view(["POST"])
+@authentication_classes([SessionAuthentication, JWTAuthentication])
+def jwt_exchange(request):
+    refresh = RefreshToken.for_user(request.user)
+    return Response({
+        "access": str(refresh.access_token),
+        "refresh": str(refresh),
+    })
 
 
 
