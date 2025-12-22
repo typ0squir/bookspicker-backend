@@ -138,7 +138,7 @@ class BookAIGenerationTask(models.Model):
         ]
 
 # --------------------------
-# Tag / BookTag
+# Tag / BookTag / UserBookTag
 # --------------------------
 
 class Tag(models.Model):
@@ -174,6 +174,14 @@ class BookTag(models.Model):
     class Meta:
         unique_together = ("book", "tag")
 
+class UserBookTag(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_book_tag_list")
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name="user_book_tag_list")
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE, related_name="user_book_tag_list")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "book", "tag")
 
 # --------------------------
 # Library / Wishlist / Like
