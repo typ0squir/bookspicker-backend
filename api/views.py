@@ -20,7 +20,7 @@ from bs4 import BeautifulSoup
 from .models import (
     Book, AuthorsBook, BookTag, Tag,
     UserBookHistory, UserBookLike, Wishlist,
-    Library, UserBookHistory
+    Library, UserBookHistory, UserBookTag
 )
 from .permissions import IsActiveUser
 from .constants import MAIN_BANNERS
@@ -58,9 +58,7 @@ def error_response(message, code, status_code):
 @authentication_classes([])
 def book_detail(request, isbn):
 
-    # -----------------------------
     # Book 조회
-    # -----------------------------
     try:
         book = Book.objects.select_related("genre__parent").get(isbn=isbn)
     except Book.DoesNotExist:
@@ -69,16 +67,12 @@ def book_detail(request, isbn):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    # -----------------------------
     # 장르 경로
-    # -----------------------------
     genre_path = None
     if book.genre and book.genre.parent:
         genre_path = f"{book.genre.parent.name} > {book.genre.name}"
 
-    # -----------------------------
     # 작가 목록
-    # -----------------------------
     authors_qs = (
         AuthorsBook.objects
         .select_related("author")
@@ -95,9 +89,7 @@ def book_detail(request, isbn):
             "detail_url": f"https://example.com/books/author/{ab.author.id}",
         })
 
-    # -----------------------------
     # 태그 목록
-    # -----------------------------
     book_tags_qs = (
         BookTag.objects
         .select_related("tag")
@@ -116,9 +108,7 @@ def book_detail(request, isbn):
             "tag_count": bt.tag_count,
         })
 
-    # -----------------------------
     # 좋아요 여부
-    # -----------------------------
     is_liked = False
     if request.user.is_authenticated:
         is_liked = UserBookLike.objects.filter(
@@ -126,9 +116,7 @@ def book_detail(request, isbn):
             book=book
         ).exists()
 
-    # -----------------------------
     # 댓글 (UserBookHistory.comment 기반)
-    # -----------------------------
     comments_qs = (
         UserBookHistory.objects
         .select_related("user")
@@ -161,9 +149,7 @@ def book_detail(request, isbn):
     if request.user.is_authenticated:
         is_wished = Wishlist.objects.filter(user=request.user, book=book).exists()
 
-    # -----------------------------
     # 응답
-    # -----------------------------
     response = {
         "message": "도서 상세 정보 조회 성공",
         "book": {
@@ -318,41 +304,127 @@ def resolve_canonical_tag(tag: Tag) -> Tag | None:
         return tag.canonical
     return tag
 
-@api_view(["POST", "PUT"])
+def resolve_tags_from_payload(tags_payload) -> list[Tag]:
+    """
+    request.data["tags"]에서 existing_tag_ids / new_tag_names를 받아
+    최종(Tag, canonical 반영) 리스트를 만든다.
+    """
+    if not isinstance(tags_payload, dict):
+        tags_payload = {}
+
+    existing_tag_ids = tags_payload.get("existing_tag_ids") or []
+    new_tag_names = tags_payload.get("new_tag_names") or []
+
+    resolved = []
+
+    # 1) 기존 태그 ID
+    if isinstance(existing_tag_ids, list):
+        for tid in existing_tag_ids:
+            tag_obj = Tag.objects.filter(id=tid).first()
+            if not tag_obj:
+                continue
+            canonical = resolve_canonical_tag(tag_obj)
+            if canonical:
+                resolved.append(canonical)
+
+    # 2) 신규 태그 이름
+    if isinstance(new_tag_names, list):
+        for raw_name in new_tag_names:
+            name = (raw_name or "").strip()
+            if not name:
+                continue
+
+            norm = normalize_tag_name(name)
+            tag_obj = Tag.objects.filter(normalized=norm).first()
+
+            if tag_obj is None:
+                tag_obj = Tag.objects.create(
+                    name=name,
+                    normalized=norm,
+                    status="ACTIVE",
+                    global_count=0,
+                )
+
+            canonical = resolve_canonical_tag(tag_obj)
+            if canonical:
+                resolved.append(canonical)
+
+    # canonical 중복 제거 (id 기준)
+    resolved = list({t.id: t for t in resolved}.values())
+    return resolved
+
+def sync_user_book_tags(*, user, book, new_tags: list[Tag]):
+    """
+    정합성의 핵심.
+    - old: UserBookTag에 저장된 (user, book)의 태그들
+    - new: 이번 요청에서 확정된 최종 태그들
+    diff만큼만 BookTag.user_count / tag_count를 증감한다.
+    user-book 기준으로 태그를 최종 상태(new_tags)로 동기화
+    """
+    old_tag_ids = set(
+        UserBookTag.objects
+        .filter(user=user, book=book)
+        .values_list("tag_id", flat=True)
+    )
+
+    new_tag_ids = set(tag.id for tag in new_tags)
+
+    to_add = new_tag_ids - old_tag_ids
+    to_remove = old_tag_ids - new_tag_ids
+
+    # 추가
+    for tag_id in to_add:
+        UserBookTag.objects.create(user=user, book=book, tag_id=tag_id)
+
+        bt, _ = BookTag.objects.get_or_create(book=book, tag_id=tag_id)
+        BookTag.objects.filter(id=bt.id).update(
+            user_count=F("user_count") + 1,
+            tag_count=F("base_count") + (F("user_count") + 1),
+        )
+        Tag.objects.filter(id=tag_id).update(
+            global_count=F("global_count") + 1
+        )
+
+    # 제거
+    for tag_id in to_remove:
+        UserBookTag.objects.filter(
+            user=user, book=book, tag_id=tag_id
+        ).delete()
+
+        bt = BookTag.objects.filter(book=book, tag_id=tag_id).first()
+        if bt:
+            if bt.user_count > 0:
+                BookTag.objects.filter(id=bt.id).update(
+                    user_count=F("user_count") - 1,
+                    tag_count=F("base_count") + (F("user_count") - 1),
+                )
+            else:
+                BookTag.objects.filter(id=bt.id).update(
+                    user_count=0,
+                    tag_count=F("base_count"),
+                )
+
+@api_view(["POST"])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated, IsActiveUser])
-def book_comment(request, isbn):
-    # -----------------------------
-    # 1) Book 조회
-    # -----------------------------
+def book_comment_create(request, isbn):
+    # 1) 도서 조회
     try:
         book = Book.objects.get(isbn=isbn)
     except Book.DoesNotExist:
-        return Response(
-            {"message": "도서를 찾을 수 없습니다."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+        return Response({"message": "도서를 찾을 수 없습니다."}, status=status.HTTP_404_NOT_FOUND)
 
-    # -----------------------------
-    # 2) content 검증 (필수, 280자)
-    # -----------------------------
+    # 2) content 검증
     content = (request.data.get("content") or "").strip()
-
     if not content:
-        return Response(
-            {"message": "코멘트 내용은 필수입니다."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
+        return Response({"message": "코멘트 내용은 필수입니다."}, status=status.HTTP_400_BAD_REQUEST)
     if len(content) > MAX_COMMENT_LENGTH:
         return Response(
             {"message": f"코멘트는 최대 {MAX_COMMENT_LENGTH}자까지 작성할 수 있습니다."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # -----------------------------
-    # 3) 유저당 1개 코멘트 제한 (이미 comment가 있으면 409)
-    # -----------------------------
+    # 3) 유저당 1개 코멘트 제한
     already = (
         UserBookHistory.objects
         .filter(user=request.user, book=book)
@@ -361,106 +433,97 @@ def book_comment(request, isbn):
         .exists()
     )
     if already:
-        return Response(
-            {"message": "이미 이 도서에 코멘트를 작성하셨습니다."},
-            status=status.HTTP_409_CONFLICT,
-        )
+        return Response({"message": "이미 이 도서에 코멘트를 작성하셨습니다."}, status=status.HTTP_409_CONFLICT)
 
     tags_payload = request.data.get("tags") or {}
-    existing_tag_ids = tags_payload.get("existing_tag_ids") or []
-    new_tag_names = tags_payload.get("new_tag_names") or []
+    resolved_tags = resolve_tags_from_payload(tags_payload)
 
     now = timezone.now()
 
     with transaction.atomic():
-        # -----------------------------
-        # 4) UserBookHistory 생성/갱신
-        #    - 기존 기록이 있으면 재사용, 없으면 생성
-        # -----------------------------
-        history, created = UserBookHistory.objects.get_or_create(
+        # 4) history 생성/갱신
+        history, _ = UserBookHistory.objects.get_or_create(
             user=request.user,
             book=book,
-            defaults={
-                "started_at": now,
-                "progress_percent": 0.0,
-            },
+            defaults={"started_at": now, "progress_percent": 0.0},
         )
-        # started_at이 비어있을 수 있으면 방어(데이터 꼬임 대비)
-        if not history.started_at:
-            history.started_at = now
-
         history.comment = content
         history.last_read_at = now
-        history.save()
+        history.save(update_fields=["comment", "last_read_at", "updated_at"])
 
-        # -----------------------------
-        # 5) 태그 처리 유틸: BookTag 카운트 증가 + Tag 전체 카운트 증가
-        # -----------------------------
-        def apply_tag(tag_obj: Tag):
-            canonical = resolve_canonical_tag(tag_obj)
-            if canonical is None:
-                return
-
-            # BookTag 없으면 생성(사용자 태그는 base_count=0)
-            bt, _ = BookTag.objects.get_or_create(
-                book=book,
-                tag=canonical,
-                defaults={
-                    "base_count": 0,
-                    "user_count": 0,
-                    "tag_count": 0,
-                },
-            )
-
-            # book 기준 누적
-            BookTag.objects.filter(pk=bt.pk).update(
-                user_count=F("user_count") + 1,
-                tag_count=F("tag_count") + 1,
-            )
-
-            # tag 전체 누적
-            Tag.objects.filter(pk=canonical.pk).update(
-                global_count=F("global_count") + 1
-            )
-
-        # -----------------------------
-        # 6) 기존 태그 ID 적용
-        # -----------------------------
-        if isinstance(existing_tag_ids, list):
-            for tid in existing_tag_ids:
-                try:
-                    tag_obj = Tag.objects.get(id=tid)
-                except Tag.DoesNotExist:
-                    continue
-                apply_tag(tag_obj)
-
-        # -----------------------------
-        # 7) 신규 태그 이름 생성 + 적용
-        # -----------------------------
-        if isinstance(new_tag_names, list):
-            for raw_name in new_tag_names:
-                name = (raw_name or "").strip()
-                if not name:
-                    continue
-
-                norm = normalize_tag_name(name)
-
-                # 이미 같은 normalized가 있으면 그걸 재사용하는 편이 정합성에 유리
-                tag_obj = Tag.objects.filter(normalized=norm).first()
-                if tag_obj is None:
-                    tag_obj = Tag.objects.create(
-                        name=name,
-                        normalized=norm,
-                        status="ACTIVE",
-                        global_count=0,
-                    )
-
-                apply_tag(tag_obj)
+        # 5) 태그 최종 상태 반영 (생성: old=없음 -> new=입력)
+        sync_user_book_tags(user=request.user, book=book, new_tags=resolved_tags)
 
     return Response(
-        {"message": "도서 코멘트가 등록되었습니다."},
+        {
+            "message": "도서 코멘트가 등록되었습니다.",
+            "comment_id": history.id,
+        },
         status=status.HTTP_201_CREATED,
     )
+
+@api_view(["PUT", "PATCH"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated, IsActiveUser])
+def book_comment_edit(request, isbn, comment_id):
+    # 1) 도서 조회
+    try:
+        book = Book.objects.get(isbn=isbn)
+    except Book.DoesNotExist:
+        return Response({"message": "도서를 찾을 수 없습니다."}, status=status.HTTP_404_NOT_FOUND)
+
+    # 2) 본인 코멘트(history)인지 확인 (comment_id = UserBookHistory.id)
+    history = UserBookHistory.objects.filter(id=comment_id, user=request.user, book=book).first()
+    if not history:
+        return Response({"message": "코멘트를 찾을 수 없습니다."}, status=status.HTTP_404_NOT_FOUND)
+
+    # 3) content 검증
+    content = (request.data.get("content") or "").strip()
+    if not content:
+        return Response({"message": "코멘트 내용은 필수입니다."}, status=status.HTTP_400_BAD_REQUEST)
+    if len(content) > MAX_COMMENT_LENGTH:
+        return Response(
+            {"message": f"코멘트는 최대 {MAX_COMMENT_LENGTH}자까지 작성할 수 있습니다."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    tags_payload = request.data.get("tags") or {}
+    resolved_tags = resolve_tags_from_payload(tags_payload)
+
+    with transaction.atomic():
+        # 4) 코멘트 수정
+        history.comment = content
+        history.save(update_fields=["comment", "updated_at"])
+
+        # 5) 태그 최종 상태로 동기화 (수정: old<->new diff만 반영)
+        sync_user_book_tags(user=request.user, book=book, new_tags=resolved_tags)
+
+    return Response({"message": "도서 코멘트가 수정되었습니다."}, status=status.HTTP_200_OK)
+
+@api_view(["DELETE"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated, IsActiveUser])
+def book_comment_delete(request, isbn, comment_id):
+    # 1) 도서 조회
+    try:
+        book = Book.objects.get(isbn=isbn)
+    except Book.DoesNotExist:
+        return Response({"message": "도서를 찾을 수 없습니다."}, status=status.HTTP_404_NOT_FOUND)
+
+    # 2) 본인 코멘트(history)인지 확인
+    history = UserBookHistory.objects.filter(id=comment_id, user=request.user, book=book).first()
+    if not history:
+        return Response({"message": "코멘트를 찾을 수 없습니다."}, status=status.HTTP_404_NOT_FOUND)
+
+    with transaction.atomic():
+        # 3) 코멘트 내용만 삭제 (히스토리는 유지)
+        history.comment = None  # 또는 ""로 통일해도 됨. 생성의 already 체크와 맞추는 게 중요
+        history.save(update_fields=["comment", "updated_at"])
+
+        # 4) 태그 전부 제거 (old -> empty)
+        sync_user_book_tags(user=request.user, book=book, new_tags=[])
+
+    return Response({"message": "도서 코멘트가 삭제되었습니다."}, status=status.HTTP_200_OK)
 
 @api_view(["GET"])
 @authentication_classes([])
