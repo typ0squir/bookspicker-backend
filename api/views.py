@@ -23,6 +23,7 @@ from .models import (
     Library, UserBookHistory
 )
 from .permissions import IsActiveUser
+from .constants import MAIN_BANNERS
 from .serializers import (
     CurrentReadingBookSerializer,
     BookCommentDetailSerializer,
@@ -37,6 +38,8 @@ TOP_TAGS_LIMIT = 3
 # 검색 결과 갯수 제한
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 50
+
+BANNER_LIMIT = 4
 
 def error_response(message, code, status_code):
     return Response(
@@ -1187,6 +1190,21 @@ def main_current_reading(request):
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+@api_view(["GET"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def main_banner(request):
+    # order 기준 정렬 + 상위 N개만 반환
+    banners = sorted(MAIN_BANNERS, key=lambda x: x.get("order", 999))[:BANNER_LIMIT]
+
+    return Response(
+        {
+            "message": "메인 배너 조회 성공",
+            "banners": banners,
+        },
+        status=status.HTTP_200_OK,
+    )
 
 # --------------------------
 # allauth with JWT

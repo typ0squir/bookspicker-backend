@@ -20,6 +20,7 @@ urlpatterns = [
 
     # main
     path("main/current-reading/", views.main_current_reading),
+    path("main/banner/", views.main_banner),
 
     # admin
     path("admin/books/", admin_views.admin_book_create),
