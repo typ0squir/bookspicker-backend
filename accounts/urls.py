@@ -10,6 +10,7 @@ urlpatterns = [
 
     path("nickname/", views.nickname_update),
     path("resign/", views.resign),
+    path("social-login/", views.social_login),
 
     path("highlights/", views.highlights_list),
     path("comments/", views.comment_list),

@@ -1,13 +1,27 @@
+from django.conf import settings
+import requests
+from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.utils import timezone
 from django.contrib.auth import logout
 from api.permissions import IsActiveUser
+
+from .serializers import (
+    ColdStartNicknameSerializer,
+    ColdStartTagsSerializer,
+    ColdStartBooksSerializer,
+    ColdStartProfileInfoRequestSerializer,
+    AccountCommentListItemSerializer,
+    NicknameUpdateSerializer
+)
+
+User = get_user_model()
 
 from .serializers import (
     ColdStartNicknameSerializer,
@@ -637,6 +651,89 @@ def resign(request):
         {"message": "회원 탈퇴가 완료되었습니다."},
         status=200,
     )
+
+
+# --------------------------
+# Social Login
+# --------------------------
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def social_login(request):
+    """
+    POST /accounts/social-login/
+    Body: { "code": "..." }
+    """
+    code = request.data.get("code")
+    if not code:
+        return Response({"message": "code is required"}, status=400)
+
+    # 1. Exchange code for access token
+    token_req_url = "https://oauth2.googleapis.com/token"
+    token_req_data = {
+        "code": code,
+        "client_id": getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", ""),
+        "client_secret": getattr(settings, "GOOGLE_OAUTH_CLIENT_SECRET", ""),
+        "redirect_uri": getattr(settings, "GOOGLE_OAUTH_REDIRECT_URI", ""),
+        "grant_type": "authorization_code",
+    }
+    
+    token_resp = requests.post(token_req_url, data=token_req_data)
+    if not token_resp.ok:
+        return Response(
+            {"message": "Failed to get token from Google", "details": token_resp.json()},
+            status=400
+        )
+    
+    token_json = token_resp.json()
+    google_access_token = token_json.get("access_token")
+
+    # 2. Get User Info
+    user_info_req_url = "https://www.googleapis.com/userinfo/v2/me"
+    user_info_resp = requests.get(
+        user_info_req_url, 
+        params={"access_token": google_access_token}
+    )
+    if not user_info_resp.ok:
+        return Response(
+            {"message": "Failed to get user info from Google", "details": user_info_resp.json()},
+            status=400
+        )
+    
+    user_info = user_info_resp.json()
+    email = user_info.get("email")
+    name = user_info.get("name", "")
+
+    if not email:
+        return Response({"message": "Email not provided by Google"}, status=400)
+
+    # 3. Find or Create User
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        user = User.objects.create_user(
+            username=email,
+            email=email,
+            password=None, 
+        )
+        if hasattr(user, 'first_name'):
+             user.first_name = name 
+        user.save()
+
+    # 4. Generate JWT
+    refresh = RefreshToken.for_user(user)
+
+    return Response({
+        "message": "Login Success",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+        },
+        "token": {
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+        }
+    })
 
 
 
