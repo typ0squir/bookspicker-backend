@@ -540,6 +540,55 @@ def book_comment_detail(request, isbn, comment_id):
         status=status.HTTP_200_OK,
     )
 
+@api_view(["DELETE"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated, IsActiveUser])
+def book_comment_delete(request, isbn, comment_id):
+    # 1) 책 존재 확인
+    try:
+        book = Book.objects.get(isbn=isbn)
+    except Book.DoesNotExist:
+        return Response(
+            {"message": "도서를 찾을 수 없습니다.", "error": {"code": "BOOK_NOT_FOUND"}},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # 2) 해당 책의 해당 comment_id(UserBookHistory) 찾기
+    try:
+        history = UserBookHistory.objects.get(id=comment_id, book=book)
+    except UserBookHistory.DoesNotExist:
+        return Response(
+            {"message": "코멘트를 찾을 수 없습니다.", "error": {"code": "COMMENT_NOT_FOUND"}},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # 3) 본인 기록인지 확인
+    if history.user_id != request.user.id:
+        return Response(
+            {"message": "삭제 권한이 없습니다.", "error": {"code": "FORBIDDEN"}},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    # 4) 코멘트가 이미 없으면 삭제할 게 없음
+    if not history.comment:
+        return Response(
+            {"message": "이미 삭제되었거나 코멘트가 없습니다.", "error": {"code": "COMMENT_NOT_FOUND"}},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # 5) 코멘트만 삭제 (레코드는 유지)
+    history.comment = None
+    history.save(update_fields=["comment", "updated_at"])
+
+    return Response(
+        {
+            "message": "도서 코멘트가 삭제되었습니다.",
+            "isbn": book.isbn,
+            "comment_id": history.id,
+        },
+        status=status.HTTP_200_OK,
+    )
+
 # tag 뱃지 color picker
 def _pick_color(slug: str) -> str:
     """
