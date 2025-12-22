@@ -12,6 +12,24 @@ class User(AbstractUser):
     is_active = models.BooleanField(default=True)
     resigned_at = models.DateTimeField(null=True, blank=True)
 
+    @property
+    def is_coldstart_completed(self):
+        """
+        콜드스타트(온보딩) 완료 여부 확인
+        - nickname 존재 여부
+        - Trait의 coldstart_tags_done_at, coldstart_books_done_at 존재 여부
+        """
+        # Trait 존재 여부 확인
+        if not hasattr(self, 'trait'):
+            return False
+            
+        trait = self.trait
+        return all([
+            self.nickname,
+            trait.coldstart_tags_done_at,
+            trait.coldstart_books_done_at
+        ])
+
 class Trait(models.Model):
     """
     사용자 성향 정보

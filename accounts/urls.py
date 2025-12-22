@@ -15,4 +15,5 @@ urlpatterns = [
     path("highlights/", views.highlights_list),
     path("comments/", views.comment_list),
     path("booklist/", views.booklist),
+    path("me/", views.account_me),
 ]
