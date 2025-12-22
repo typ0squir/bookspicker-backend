@@ -11,7 +11,7 @@ urlpatterns = [
     path("books/<str:isbn>/wishlist/", views.book_wishlist_toggle),
     path("books/<str:isbn>/comment/", views.book_comment),
     path("books/<str:isbn>/comment/<int:comment_id>/", views.book_comment_detail),
-    path("books/<str:isbn>/library/", views.add_book_to_library),
+    path("books/<str:isbn>/library/", views.book_library),
 
     # bookviews
     path("bookviews/<str:isbn>/", views.bookview_meta),

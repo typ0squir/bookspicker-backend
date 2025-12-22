@@ -690,50 +690,56 @@ def books_popular(request):
     )
 
 
-@api_view(["POST"])
+@api_view(["POST", "DELETE"])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated, IsActiveUser])
-def add_book_to_library(request, isbn):
-    # 1) Book 존재 확인
+def book_library(request, isbn):
+    # 1) 책 존재 확인 (Book PK=isbn)
     try:
         book = Book.objects.get(isbn=isbn)
     except Book.DoesNotExist:
-        return error_response("존재하지 않는 도서입니다.", "BOOK_NOT_FOUND", 404)
+        return Response(
+            {"message": "도서를 찾을 수 없습니다.", "error": {"code": "BOOK_NOT_FOUND"}},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
-    # 2) 이미 서재에 있는지 확인
-    if Library.objects.filter(user=request.user, book=book).exists():
-        return error_response("이미 서재에 추가된 도서입니다.", "ALREADY_IN_LIBRARY", 409)
+    user = request.user
 
-    # 3) Library 생성
-    library = Library.objects.create(
-        user=request.user,
-        book=book,
-        is_downloaded=False,
-        book_expiration_date=timezone.now() + timedelta(days=14),
-    )
+    # 2) POST: 내 서재 추가
+    if request.method == "POST":
+        obj, created = Library.objects.get_or_create(user=user, book=book)
+        return Response(
+            {
+                "message": "내 서재에 도서가 추가되었습니다.",
+                "library": {
+                    "isbn": book.isbn,
+                    "is_downloaded": obj.is_downloaded,
+                    "book_expiration_date": obj.book_expiration_date,
+                    "added_at": obj.added_at,
+                },
+            },
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
 
-    # 4) UserBookHistory 초기 생성 (이어읽기 기반)
-    UserBookHistory.objects.create(
-        user=request.user,
-        book=book,
-        started_at=timezone.now(),
-        current_location=0,
-        progress_percent=0.0,
-        last_read_at=None,
-    )
+    # 3) DELETE: 내 서재 삭제
+    deleted_count, _ = Library.objects.filter(user=user, book=book).delete()
 
-    # 5) 응답
+    if deleted_count == 0:
+        return Response(
+            {
+                "message": "내 서재에 없는 도서입니다.",
+                "error": {"code": "LIBRARY_ITEM_NOT_FOUND"},
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
     return Response(
         {
-            "message": "도서가 내 서재에 추가되었습니다.",
-            "library": {
-                "isbn": book.isbn,
-                "title": book.title,
-                "added_at": library.added_at.isoformat(),
-                "is_downloaded": library.is_downloaded,
-            },
+            "message": "내 서재에서 도서가 삭제되었습니다.",
+            "isbn": book.isbn,
+            "in_library": False,
         },
-        status=201,
+        status=status.HTTP_200_OK,
     )
 
 @api_view(["GET"])
