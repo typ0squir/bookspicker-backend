@@ -69,6 +69,11 @@ def admin_book_create(request):
 
             cover_image=data["cover_image"],
             epub_file=data["epub_file"],
+
+            abstract_descript=data.get("abstract_descript"),
+            full_descript=data.get("full_descript"),
+            top_tags=data.get("top_tags", []),
+            recommendation_refer=data.get("recommendation_refer", []),
         )
 
         # 2) 작가 / 역할 / 대표작가
