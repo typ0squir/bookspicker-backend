@@ -366,7 +366,7 @@
   },
   {
     "model": "api.book",
-    "pk": "9788932912066_dummy1",
+    "pk": "9788932912",
     "fields": {
       "title": "더미 북 1",
       "publisher": "더미출판사",
@@ -382,7 +382,7 @@
   },
   {
     "model": "api.book",
-    "pk": "9788932912066_dummy2",
+    "pk": "9788932912",
     "fields": {
       "title": "더미 북 2",
       "publisher": "더미출판사",
@@ -398,7 +398,7 @@
   },
   {
     "model": "api.book",
-    "pk": "9788932912066_dummy3",
+    "pk": "9788932912",
     "fields": {
       "title": "더미 북 3",
       "publisher": "더미출판사",
@@ -414,7 +414,7 @@
   },
   {
     "model": "api.book",
-    "pk": "9788932912066_dummy4",
+    "pk": "9788932912",
     "fields": {
       "title": "더미 북 4",
       "publisher": "더미출판사",
@@ -430,7 +430,7 @@
   },
   {
     "model": "api.book",
-    "pk": "9788932912066_dummy5",
+    "pk": "9788932912",
     "fields": {
       "title": "더미 북 5",
       "publisher": "더미출판사",
