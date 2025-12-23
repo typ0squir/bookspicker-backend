@@ -1,19 +1,18 @@
 import environ
-import os
 from pathlib import Path
 from datetime import timedelta
-
-# 환경 변수 파일 조회
-env = environ.Env()
-environ.Env.read_env()
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+env = environ.Env()
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY')
+environ.Env.read_env(BASE_DIR / ".env")
+
+SECRET_KEY = env("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env('DEBUG')
+DEBUG = env.bool("DEBUG", default=False)
 
 ALLOWED_HOSTS = []
 
