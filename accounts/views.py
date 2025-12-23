@@ -445,6 +445,7 @@ def booklist(request):
             .select_related("book")
             .filter(user=user)
             .exclude(last_read_at__isnull=True)
+            .prefetch_related("book__authors_book_list__author")
             .order_by("-last_read_at")
         )
 
@@ -454,10 +455,12 @@ def booklist(request):
         books = []
         for h in items:
             b = h.book
+            authors = [ab.author.name for ab in b.authors_book_list.all()]
             books.append({
                 "isbn": getattr(b, "isbn", ""),
                 "title": getattr(b, "title", ""),
-                "cover_image": getattr(b, "cover_image", None),
+                "author": ", ".join(authors),
+                "coverUrl": getattr(b, "cover_image", None),
                 "publisher": getattr(b, "publisher", None),
                 "last_read_at": h.last_read_at,
                 "progress_percent": float(h.progress_percent),
@@ -485,6 +488,7 @@ def booklist(request):
             Library.objects
             .select_related("book")
             .filter(user=user)
+            .prefetch_related("book__authors_book_list__author")
             .order_by("-added_at")
         )
         total_count = link_qs.count()
@@ -493,10 +497,12 @@ def booklist(request):
         books = []
         for link in items:
             b = link.book
+            authors = [ab.author.name for ab in b.authors_book_list.all()]
             books.append({
                 "isbn": getattr(b, "isbn", ""),
                 "title": getattr(b, "title", ""),
-                "cover_image": getattr(b, "cover_image", None),
+                "author": ", ".join(authors),
+                "coverUrl": getattr(b, "cover_image", None),
                 "publisher": getattr(b, "publisher", None),
 
                 "added_at": link.added_at,
@@ -524,6 +530,7 @@ def booklist(request):
             Wishlist.objects
             .select_related("book")
             .filter(user=user)
+            .prefetch_related("book__authors_book_list__author")
             .order_by("-added_at")
         )
         total_count = link_qs.count()
@@ -532,10 +539,12 @@ def booklist(request):
         books = []
         for link in items:
             b = link.book
+            authors = [ab.author.name for ab in b.authors_book_list.all()]
             books.append({
                 "isbn": getattr(b, "isbn", ""),
                 "title": getattr(b, "title", ""),
-                "cover_image": getattr(b, "cover_image", None),
+                "author": ", ".join(authors),
+                "coverUrl": getattr(b, "cover_image", None),
                 "publisher": getattr(b, "publisher", None),
 
                 "added_at": link.added_at,
@@ -561,6 +570,7 @@ def booklist(request):
         UserBookLike.objects
         .select_related("book")
         .filter(user=user)
+        .prefetch_related("book__authors_book_list__author")
         .order_by("-created_at")
     )
     total_count = link_qs.count()
@@ -569,10 +579,12 @@ def booklist(request):
     books = []
     for link in items:
         b = link.book
+        authors = [ab.author.name for ab in b.authors_book_list.all()]
         books.append({
             "isbn": getattr(b, "isbn", ""),
             "title": getattr(b, "title", ""),
-            "cover_image": getattr(b, "cover_image", None),
+            "author": ", ".join(authors),
+            "coverUrl": getattr(b, "cover_image", None),
             "publisher": getattr(b, "publisher", None),
 
             "liked_at": link.created_at,

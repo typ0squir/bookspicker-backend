@@ -68,6 +68,7 @@ class PopularBookSerializer(serializers.Serializer):
     top_tags = TagMiniSerializer(many=True)
 
     is_liked = serializers.BooleanField()
+    is_wished = serializers.BooleanField()
     links = serializers.DictField()
 
 class BookSearchSerializer(serializers.Serializer):
