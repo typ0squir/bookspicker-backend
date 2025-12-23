@@ -1,10 +1,15 @@
+import environ
 from pathlib import Path
 from datetime import timedelta
+
+# 환경 변수 파일 조회
+env = environ.Env()
+environ.Env.read_env()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-ezt4f7p6qn@gw)@nl01cf&c7w%j*3*jdvhexrsji2@58^h1hob'
+SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
