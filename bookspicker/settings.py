@@ -176,6 +176,11 @@ SOCIALACCOUNT_PROVIDERS = {
         "AUTH_PARAMS": {
             "access_type": "online",
         },
+        "APP": {
+            "client_id": env("GOOGLE_OAUTH_CLIENT_ID"),
+            "secret": env("GOOGLE_OAUTH_CLIENT_SECRET"),
+            "key": ""
+        }
     }
 }
 
@@ -205,7 +210,4 @@ SIMPLE_JWT = {
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-# Google OAuth Settings
-GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID")
-GOOGLE_OAUTH_CLIENT_SECRET = env("GOOGLE_OAUTH_CLIENT_SECRET")
-GOOGLE_OAUTH_REDIRECT_URI = env("GOOGLE_OAUTH_REDIRECT_URI")
+
