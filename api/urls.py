@@ -26,6 +26,7 @@ urlpatterns = [
 
     # admin
     path("admin/books/", admin_views.admin_book_create),
+    path("admin/authors/", admin_views.admin_author_list),
 
     # JWT 교환(exchange) 엔드포인트
     path("auth/jwt/exchange/", views.jwt_exchange),

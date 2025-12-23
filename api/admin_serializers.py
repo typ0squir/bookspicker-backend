@@ -39,3 +39,9 @@ class AdminBookCreateSerializer(serializers.Serializer):
         if primary_count != 1:
             raise serializers.ValidationError("대표 작가는 정확히 1명이어야 합니다.")
         return value
+
+class AdminAuthorListSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    profile_image = serializers.URLField(allow_null=True)
+    bio = serializers.CharField(allow_blank=True)
