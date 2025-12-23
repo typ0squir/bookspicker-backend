@@ -759,11 +759,17 @@ def books_popular(request):
         if len(top_tags_map[isbn]) >= TOP_TAGS_LIMIT:
             continue
 
-    # 3) is_liked 계산
+    # 3) is_liked, is_wished 계산
     liked_isbn_set = set()
+    wished_isbn_set = set()
     if request.user.is_authenticated:
         liked_isbn_set = set(
             UserBookLike.objects
+            .filter(user=request.user, book__isbn__in=book_isbns)
+            .values_list("book__isbn", flat=True)
+        )
+        wished_isbn_set = set(
+            Wishlist.objects
             .filter(user=request.user, book__isbn__in=book_isbns)
             .values_list("book__isbn", flat=True)
         )
@@ -783,6 +789,7 @@ def books_popular(request):
             "top_tags": top_tags_map.get(isbn, []),
 
             "is_liked": isbn in liked_isbn_set,
+            "is_wished": isbn in wished_isbn_set,
 
             "links": {
                 "like_toggle_url": f"/books/{isbn}/likes",
