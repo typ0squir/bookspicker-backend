@@ -1,0 +1,594 @@
+[
+  {
+    "model": "api.genreparent",
+    "pk": 1,
+    "fields": {
+      "name": "소설"
+    }
+  },
+  {
+    "model": "api.genreparent",
+    "pk": 2,
+    "fields": {
+      "name": "에세이"
+    }
+  },
+  {
+    "model": "api.genreparent",
+    "pk": 3,
+    "fields": {
+      "name": "자기계발"
+    }
+  },
+  {
+    "model": "api.genreparent",
+    "pk": 4,
+    "fields": {
+      "name": "인문/사회"
+    }
+  },
+  {
+    "model": "api.genrechild",
+    "pk": 101,
+    "fields": {
+      "name": "한국소설",
+      "parent": 1
+    }
+  },
+  {
+    "model": "api.genrechild",
+    "pk": 102,
+    "fields": {
+      "name": "영미소설",
+      "parent": 1
+    }
+  },
+  {
+    "model": "api.genrechild",
+    "pk": 103,
+    "fields": {
+      "name": "일본소설",
+      "parent": 1
+    }
+  },
+  {
+    "model": "api.genrechild",
+    "pk": 104,
+    "fields": {
+      "name": "고전소설",
+      "parent": 1
+    }
+  },
+  {
+    "model": "api.genrechild",
+    "pk": 201,
+    "fields": {
+      "name": "힐링에세이",
+      "parent": 2
+    }
+  },
+  {
+    "model": "api.genrechild",
+    "pk": 301,
+    "fields": {
+      "name": "성공/처세",
+      "parent": 3
+    }
+  },
+  {
+    "model": "api.genrechild",
+    "pk": 401,
+    "fields": {
+      "name": "인문/사회 일반",
+      "parent": 4
+    }
+  },
+  {
+    "model": "api.author",
+    "pk": 1,
+    "fields": {
+      "name": "한강",
+      "bio": "한국을 대표하는 소설가",
+      "profile_image": "https://picsum.photos/seed/author1/200/200"
+    }
+  },
+  {
+    "model": "api.author",
+    "pk": 2,
+    "fields": {
+      "name": "무라카미 하루키",
+      "bio": "전 세계적으로 사랑받는 일본 작가",
+      "profile_image": "https://picsum.photos/seed/author2/200/200"
+    }
+  },
+  {
+    "model": "api.author",
+    "pk": 3,
+    "fields": {
+      "name": "김호연",
+      "bio": "따뜻한 시선의 소설가",
+      "profile_image": "https://picsum.photos/seed/author3/200/200"
+    }
+  },
+  {
+    "model": "api.author",
+    "pk": 4,
+    "fields": {
+      "name": "제임스 클리어",
+      "bio": "자기계발 전문가",
+      "profile_image": "https://picsum.photos/seed/author4/200/200"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9788936434267",
+    "fields": {
+      "title": "채식주의자",
+      "publisher": "창비",
+      "published_date": "2007-10-30",
+      "page_count": 211,
+      "lang": "ko",
+      "genre": 101,
+      "cover_image": "https://picsum.photos/seed/9788936434267/300/450",
+      "epub_file": "https://example.com/books/veg.epub",
+      "toc": [],
+      "abstract_descript": "인간의 폭력성과 욕망을 다룬 강렬한 소설",
+      "like_count": 120,
+      "readed_num_week": 15,
+      "readed_num_month": 50
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9791161571188",
+    "fields": {
+      "title": "불편한 편의점",
+      "publisher": "나무옆의자",
+      "published_date": "2021-04-20",
+      "page_count": 268,
+      "lang": "ko",
+      "genre": 201,
+      "cover_image": "https://picsum.photos/seed/9791161571188/300/450",
+      "epub_file": "https://example.com/books/store.epub",
+      "toc": [],
+      "abstract_descript": "편의점에서 일어나는 따뜻한 이웃들의 이야기",
+      "like_count": 300,
+      "is_steady": true
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9791162540640",
+    "fields": {
+      "title": "아주 작은 습관의 힘",
+      "publisher": "비즈니스북스",
+      "published_date": "2019-02-26",
+      "page_count": 352,
+      "lang": "ko",
+      "genre": 301,
+      "cover_image": "https://picsum.photos/seed/9791162540640/300/450",
+      "epub_file": "https://example.com/books/habit.epub",
+      "toc": [],
+      "abstract_descript": "운명을 바꾸는 아주 작은 습관의 마법"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9788937460715",
+    "fields": {
+      "title": "1Q84 1",
+      "publisher": "문학동네",
+      "published_date": "2009-08-25",
+      "page_count": 654,
+      "lang": "ko",
+      "genre": 103,
+      "cover_image": "https://picsum.photos/seed/9788937460715/300/450",
+      "epub_file": "https://example.com/books/1q84.epub",
+      "toc": [],
+      "abstract_descript": "현실과 비현실이 교차하는 환상적인 세계"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9791191056556",
+    "fields": {
+      "title": "미드나잇 라이브러리",
+      "publisher": "인플루엔셜",
+      "published_date": "2021-04-28",
+      "page_count": 408,
+      "lang": "ko",
+      "genre": 102,
+      "cover_image": "https://picsum.photos/seed/9791191056556/300/450",
+      "epub_file": "https://example.com/books/midnight.epub",
+      "toc": [],
+      "abstract_descript": "살고 싶지 않았던 순간, 다시 살고 싶게 만드는 도서관의 기적"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9791188331796",
+    "fields": {
+      "title": "달러구트 꿈 백화점",
+      "publisher": "팩토리나인",
+      "published_date": "2020-07-08",
+      "page_count": 300,
+      "lang": "ko",
+      "genre": 201,
+      "cover_image": "https://picsum.photos/seed/9791188331796/300/450",
+      "epub_file": "https://example.com/books/dream.epub",
+      "toc": [],
+      "abstract_descript": "어른들을 위한 환상적이고 따뜻한 판타지 에세이"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9791167301239",
+    "fields": {
+      "title": "역행자",
+      "publisher": "웅진지식하우스",
+      "published_date": "2022-05-30",
+      "page_count": 314,
+      "lang": "ko",
+      "genre": 301,
+      "cover_image": "https://picsum.photos/seed/9791167301239/300/450",
+      "epub_file": "https://example.com/books/reverse.epub",
+      "toc": [],
+      "abstract_descript": "돈, 시간, 운명으로부터 완전한 자유를 얻는 7단계 공식"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9791162543023",
+    "fields": {
+      "title": "원씽",
+      "publisher": "비즈니스북스",
+      "published_date": "2013-08-30",
+      "page_count": 280,
+      "lang": "ko",
+      "genre": 301,
+      "cover_image": "https://picsum.photos/seed/9791162543023/300/450",
+      "epub_file": "https://example.com/books/onething.epub",
+      "toc": [],
+      "abstract_descript": "복잡한 세상을 이기는 단 하나의 힘"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9788932917245",
+    "fields": {
+      "title": "심판",
+      "publisher": "열린책들",
+      "published_date": "2017-12-20",
+      "page_count": 250,
+      "lang": "ko",
+      "genre": 301,
+      "cover_image": "https://picsum.photos/seed/9788932917245/300/450",
+      "epub_file": "https://example.com/books/judge.epub",
+      "toc": [],
+      "abstract_descript": "베르나르 베르베르의 기발한 사후 세계 이야기"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9788937473135",
+    "fields": {
+      "title": "사피엔스",
+      "publisher": "김영사",
+      "published_date": "2015-11-24",
+      "page_count": 636,
+      "lang": "ko",
+      "genre": 401,
+      "cover_image": "https://picsum.photos/seed/9788937473135/300/450",
+      "epub_file": "https://example.com/books/sapiens.epub",
+      "toc": [],
+      "abstract_descript": "유인원에서 사이보그까지, 인간 역사의 대담한 탐구"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9791191043297",
+    "fields": {
+      "title": "오늘 밤, 세계에서 이 사랑이 사라진다 해도",
+      "publisher": "모모",
+      "published_date": "2021-06-28",
+      "page_count": 380,
+      "lang": "ko",
+      "genre": 103,
+      "cover_image": "https://picsum.photos/seed/9791191043297/300/450",
+      "epub_file": "https://example.com/books/love.epub",
+      "toc": [],
+      "abstract_descript": "기억과 사랑에 대한 슬프고 따뜻한 소설"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9788959139965",
+    "fields": {
+      "title": "기분을 관리하면 인생이 관리된다",
+      "publisher": "스튜디오오드리",
+      "published_date": "2021-03-31",
+      "page_count": 280,
+      "lang": "ko",
+      "genre": 201,
+      "cover_image": "https://picsum.photos/seed/9788959139965/300/450",
+      "epub_file": "https://example.com/books/mood.epub",
+      "toc": [],
+      "abstract_descript": "흔들리는 마음을 다잡는 기분 관리의 기술"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9791167140807",
+    "fields": {
+      "title": "이지성 프로젝트",
+      "publisher": "차이정원",
+      "published_date": "2021-12-01",
+      "page_count": 400,
+      "lang": "ko",
+      "genre": 301,
+      "cover_image": "https://picsum.photos/seed/9791167140807/300/450",
+      "epub_file": "https://example.com/books/project.epub",
+      "toc": [],
+      "abstract_descript": "더 나은 삶을 위한 이지성 작가의 제안"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9788998274710",
+    "fields": {
+      "title": "데미안",
+      "publisher": "더클래식",
+      "published_date": "2013-05-10",
+      "page_count": 224,
+      "lang": "ko",
+      "genre": 104,
+      "cover_image": "https://picsum.photos/seed/9788998274710/300/450",
+      "epub_file": "https://example.com/books/demian.epub",
+      "toc": [],
+      "abstract_descript": "자기 자신에게 이르는 길을 찾는 청춘의 고전"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9788931006513",
+    "fields": {
+      "title": "참을 수 없는 존재의 가벼움",
+      "publisher": "민음사",
+      "published_date": "2011-06-20",
+      "page_count": 515,
+      "lang": "ko",
+      "genre": 104,
+      "cover_image": "https://picsum.photos/seed/9788931006513/300/450",
+      "epub_file": "https://example.com/books/light.epub",
+      "toc": [],
+      "abstract_descript": "삶의 무거움과 가벼움 사이에서의 고뇌"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9788932912",
+    "fields": {
+      "title": "더미 북 1",
+      "publisher": "더미출판사",
+      "published_date": "2023-01-01",
+      "page_count": 200,
+      "lang": "ko",
+      "genre": 101,
+      "cover_image": "https://picsum.photos/seed/dummy1/300/450",
+      "epub_file": "https://example.com/books/dummy1.epub",
+      "toc": [],
+      "abstract_descript": "테스트용 더미 책 1"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9788932912",
+    "fields": {
+      "title": "더미 북 2",
+      "publisher": "더미출판사",
+      "published_date": "2023-01-02",
+      "page_count": 210,
+      "lang": "ko",
+      "genre": 102,
+      "cover_image": "https://picsum.photos/seed/dummy2/300/450",
+      "epub_file": "https://example.com/books/dummy2.epub",
+      "toc": [],
+      "abstract_descript": "테스트용 더미 책 2"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9788932912",
+    "fields": {
+      "title": "더미 북 3",
+      "publisher": "더미출판사",
+      "published_date": "2023-01-03",
+      "page_count": 220,
+      "lang": "ko",
+      "genre": 103,
+      "cover_image": "https://picsum.photos/seed/dummy3/300/450",
+      "epub_file": "https://example.com/books/dummy3.epub",
+      "toc": [],
+      "abstract_descript": "테스트용 더미 책 3"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9788932912",
+    "fields": {
+      "title": "더미 북 4",
+      "publisher": "더미출판사",
+      "published_date": "2023-01-04",
+      "page_count": 230,
+      "lang": "ko",
+      "genre": 201,
+      "cover_image": "https://picsum.photos/seed/dummy4/300/450",
+      "epub_file": "https://example.com/books/dummy4.epub",
+      "toc": [],
+      "abstract_descript": "테스트용 더미 책 4"
+    }
+  },
+  {
+    "model": "api.book",
+    "pk": "9788932912",
+    "fields": {
+      "title": "더미 북 5",
+      "publisher": "더미출판사",
+      "published_date": "2023-01-05",
+      "page_count": 240,
+      "lang": "ko",
+      "genre": 301,
+      "cover_image": "https://picsum.photos/seed/dummy5/300/450",
+      "epub_file": "https://example.com/books/dummy5.epub",
+      "toc": [],
+      "abstract_descript": "테스트용 더미 책 5"
+    }
+  },
+  {
+    "model": "api.authorsbook",
+    "pk": 1,
+    "fields": {
+      "author": 1,
+      "book": "9788936434267",
+      "role": "AUTHOR",
+      "is_primary": true
+    }
+  },
+  {
+    "model": "api.authorsbook",
+    "pk": 2,
+    "fields": {
+      "author": 3,
+      "book": "9791161571188",
+      "role": "AUTHOR",
+      "is_primary": true
+    }
+  },
+  {
+    "model": "api.authorsbook",
+    "pk": 3,
+    "fields": {
+      "author": 4,
+      "book": "9791162540640",
+      "role": "AUTHOR",
+      "is_primary": true
+    }
+  },
+  {
+    "model": "api.authorsbook",
+    "pk": 4,
+    "fields": {
+      "author": 2,
+      "book": "9788937460715",
+      "role": "AUTHOR",
+      "is_primary": true
+    }
+  },
+  {
+    "model": "api.tag",
+    "pk": 1,
+    "fields": {
+      "name": "힐링",
+      "normalized": "힐링"
+    }
+  },
+  {
+    "model": "api.tag",
+    "pk": 2,
+    "fields": {
+      "name": "미스터리",
+      "normalized": "미스터리"
+    }
+  },
+  {
+    "model": "api.tag",
+    "pk": 3,
+    "fields": {
+      "name": "자기계발",
+      "normalized": "자기계발"
+    }
+  },
+  {
+    "model": "api.tag",
+    "pk": 4,
+    "fields": {
+      "name": "베스트셀러",
+      "normalized": "베스트셀러"
+    }
+  },
+  {
+    "model": "api.booktag",
+    "pk": 1,
+    "fields": {
+      "book": "9791161571188",
+      "tag": 1,
+      "tag_count": 50,
+      "updated_at": "2023-11-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "api.booktag",
+    "pk": 2,
+    "fields": {
+      "book": "9788937460715",
+      "tag": 2,
+      "tag_count": 30,
+      "updated_at": "2023-11-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "api.booktag",
+    "pk": 3,
+    "fields": {
+      "book": "9791162540640",
+      "tag": 3,
+      "tag_count": 45,
+      "updated_at": "2023-11-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "api.userbookhistory",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "book": "9788936434267",
+      "started_at": "2023-11-01T10:00:00Z",
+      "last_read_at": "2023-11-05T15:00:00Z",
+      "status": "FINISHED",
+      "progress_percent": 100.0,
+      "comment": "강렬한 이미지들이 뇌리에 박히는 소설입니다.",
+      "created_at": "2023-11-01T10:00:00Z",
+      "updated_at": "2023-11-05T15:00:00Z"
+    }
+  },
+  {
+    "model": "api.userbookhistory",
+    "pk": 2,
+    "fields": {
+      "user": 1,
+      "book": "9791161571188",
+      "started_at": "2023-11-06T09:00:00Z",
+      "last_read_at": "2023-11-10T22:00:00Z",
+      "status": "FINISHED",
+      "progress_percent": 100.0,
+      "comment": "마음이 따뜻해지는 이야기였어요.",
+      "created_at": "2023-11-06T09:00:00Z",
+      "updated_at": "2023-11-10T22:00:00Z"
+    }
+  },
+  {
+    "model": "api.userbookhistory",
+    "pk": 3,
+    "fields": {
+      "user": 1,
+      "book": "9791162540640",
+      "started_at": "2023-11-11T20:00:00Z",
+      "last_read_at": "2023-11-12T21:00:00Z",
+      "status": "READING",
+      "progress_percent": 45.0,
+      "comment": "작은 습관의 중요성을 다시 한번 깨닫게 되네요.",
+      "created_at": "2023-11-11T20:00:00Z",
+      "updated_at": "2023-11-12T21:00:00Z"
+    }
+  }
+]

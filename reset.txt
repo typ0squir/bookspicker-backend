@@ -1,0 +1,4 @@
+python reset_db.py
+python manage.py migrate
+python create_admin.py
+python manage.py loaddata api/fixtures/dummy_data.json

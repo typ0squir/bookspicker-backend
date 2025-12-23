@@ -1,13 +1,27 @@
+from django.conf import settings
+import requests
+from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.utils import timezone
 from django.contrib.auth import logout
 from api.permissions import IsActiveUser
+
+from .serializers import (
+    ColdStartNicknameSerializer,
+    ColdStartTagsSerializer,
+    ColdStartBooksSerializer,
+    ColdStartProfileInfoRequestSerializer,
+    AccountCommentListItemSerializer,
+    NicknameUpdateSerializer
+)
+
+User = get_user_model()
 
 from .serializers import (
     ColdStartNicknameSerializer,
@@ -63,10 +77,15 @@ def coldstart_nickname(request):
         status=status.HTTP_200_OK,
     )
 
-@api_view(["POST"])
+@api_view(["GET", "POST"])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated, IsActiveUser])
 def coldstart_tags(request):
+    if request.method == "GET":
+        tags = Tag.objects.filter(status="ACTIVE").order_by("-global_count")[:30]
+        data = [{"id": t.id, "name": t.name} for t in tags]
+        return Response({"tags": data}, status=status.HTTP_200_OK)
+
     serializer = ColdStartTagsSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(
@@ -79,7 +98,7 @@ def coldstart_tags(request):
     trait, _ = Trait.objects.get_or_create(user=request.user)
 
     # 최초 1회 제한
-    if trait.coldstart_done_at is not None or trait.coldstart_tags.exists():
+    if trait.coldstart_tags_done_at is not None or trait.coldstart_tags.exists():
         return Response(
             {
                 "message": "선호 태그는 최초 1회만 설정할 수 있습니다."
@@ -109,10 +128,20 @@ def coldstart_tags(request):
         status=status.HTTP_200_OK,
     )
 
-@api_view(["POST"])
+@api_view(["GET", "POST"])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated, IsActiveUser])
 def coldstart_books(request):
+    if request.method == "GET":
+        books = Book.objects.all().order_by("?")[:50]
+        data = [{
+            "isbn": b.isbn,
+            "title": b.title,
+            "cover_image": b.cover_image,
+            "publisher": b.publisher
+        } for b in books]
+        return Response({"books": data}, status=status.HTTP_200_OK)
+
     serializer = ColdStartBooksSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(
@@ -596,6 +625,25 @@ def nickname_update(request):
         status=status.HTTP_200_OK,
     )
 
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated, IsActiveUser])
+def account_me(request):
+    """
+    현재 로그인된 사용자 정보 조회
+    """
+    user = request.user
+    return Response({
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "nickname": user.nickname,
+            "email": user.email,
+            "is_coldstart_completed": user.is_coldstart_completed,
+            "profile_image": user.profile_image,
+        }
+    }, status=status.HTTP_200_OK)
+
 @api_view(["POST"])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated, IsActiveUser])
@@ -626,9 +674,18 @@ def resign(request):
             pass
 
     # 3) 사용자 탈퇴 처리
+    now = timezone.now()
+    timestamp = int(now.timestamp())
+    
     user.is_active = False
-    user.resigned_at = timezone.now()
-    user.save(update_fields=["is_active", "resigned_at"])
+    user.resigned_at = now
+    
+    # 이메일과 유저네임에 접미어를 붙여 동일 이메일 재가입이 가능하도록 함
+    if user.email:
+        user.email = f"resigned_{timestamp}_{user.email}"
+    user.username = f"resigned_{timestamp}_{user.username}"
+    
+    user.save(update_fields=["is_active", "resigned_at", "email", "username"])
 
     # 4) 세션 로그아웃 (마지막)
     logout(request)
@@ -637,6 +694,91 @@ def resign(request):
         {"message": "회원 탈퇴가 완료되었습니다."},
         status=200,
     )
+
+
+# --------------------------
+# Social Login
+# --------------------------
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def social_login(request):
+    """
+    POST /accounts/social-login/
+    Body: { "code": "..." }
+    """
+    code = request.data.get("code")
+    if not code:
+        return Response({"message": "code is required"}, status=400)
+
+    # 1. Exchange code for access token
+    token_req_url = "https://oauth2.googleapis.com/token"
+    token_req_data = {
+        "code": code,
+        "client_id": getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", ""),
+        "client_secret": getattr(settings, "GOOGLE_OAUTH_CLIENT_SECRET", ""),
+        "redirect_uri": getattr(settings, "GOOGLE_OAUTH_REDIRECT_URI", ""),
+        "grant_type": "authorization_code",
+    }
+    
+    token_resp = requests.post(token_req_url, data=token_req_data)
+    if not token_resp.ok:
+        return Response(
+            {"message": "Failed to get token from Google", "details": token_resp.json()},
+            status=400
+        )
+    
+    token_json = token_resp.json()
+    google_access_token = token_json.get("access_token")
+
+    # 2. Get User Info
+    user_info_req_url = "https://www.googleapis.com/userinfo/v2/me"
+    user_info_resp = requests.get(
+        user_info_req_url, 
+        params={"access_token": google_access_token}
+    )
+    if not user_info_resp.ok:
+        return Response(
+            {"message": "Failed to get user info from Google", "details": user_info_resp.json()},
+            status=400
+        )
+    
+    user_info = user_info_resp.json()
+    email = user_info.get("email")
+    name = user_info.get("name", "")
+
+    if not email:
+        return Response({"message": "Email not provided by Google"}, status=400)
+
+    # 3. Find or Create User
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        user = User.objects.create_user(
+            username=email,
+            email=email,
+            password=None, 
+        )
+        if hasattr(user, 'first_name'):
+             user.first_name = name 
+        user.save()
+
+    # 4. Generate JWT
+    refresh = RefreshToken.for_user(user)
+
+    return Response({
+        "message": "Login Success",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "nickname": user.nickname,
+            "is_coldstart_completed": user.is_coldstart_completed,
+        },
+        "token": {
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+        }
+    })
 
 
 
