@@ -21,6 +21,12 @@ class AdminBookCreateSerializer(serializers.Serializer):
     purchase_link = serializers.URLField(required=False, allow_blank=True, allow_null=True)
 
     genre_child_id = serializers.IntegerField()
+    
+    # AI / Description Fields
+    abstract_descript = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    full_descript = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    top_tags = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
+    recommendation_refer = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True) # "Why Picked"
 
     cover_image = serializers.URLField()
     epub_file = serializers.URLField()
