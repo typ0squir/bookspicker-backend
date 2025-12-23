@@ -1,5 +1,10 @@
+import environ
 from pathlib import Path
 from datetime import timedelta
+
+# 환경 변수 파일 조회
+env = environ.Env()
+environ.Env.read_env()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 

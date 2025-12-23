@@ -9,9 +9,10 @@ urlpatterns = [
     path("books/<str:isbn>/", views.book_detail),
     path("books/<str:isbn>/likes/", views.book_like_toggle),
     path("books/<str:isbn>/wishlist/", views.book_wishlist_toggle),
-    path("books/<str:isbn>/comment/", views.book_comment),
-    path("books/<str:isbn>/comment/<int:comment_id>/", views.book_comment_detail),
-    path("books/<str:isbn>/comment/<int:comment_id>/delete/", views.book_comment_delete),
+    path("books/<str:isbn>/comment/", views.book_comment_create),  # POST
+    path("books/<str:isbn>/comment/<int:comment_id>/", views.book_comment_detail),  # GET (공개)
+    path("books/<str:isbn>/comment/<int:comment_id>/edit/", views.book_comment_edit),  # PUT/PATCH
+    path("books/<str:isbn>/comment/<int:comment_id>/delete/", views.book_comment_delete),  # DELETE
     path("books/<str:isbn>/library/", views.book_library),
 
     # bookviews
