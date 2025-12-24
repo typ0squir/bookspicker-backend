@@ -65,7 +65,9 @@ class PopularBookSerializer(serializers.Serializer):
     abstract_descript = serializers.CharField(allow_blank=True)
 
     like_count = serializers.IntegerField()
-    top_tags = TagMiniSerializer(many=True)
+    top_tags = serializers.ListField(child=serializers.CharField())
+    genres = serializers.ListField(child=serializers.CharField())
+    author = serializers.CharField(allow_null=True)
 
     is_liked = serializers.BooleanField()
     is_wished = serializers.BooleanField()

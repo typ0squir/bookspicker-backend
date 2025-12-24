@@ -671,18 +671,21 @@ def books_popular(request):
             Book.objects
             .filter(readed_num_week__gt=0)
             .order_by("-readed_num_week", "-like_count")
+            .prefetch_related("authors_book_list__author")
         )
     elif q == "monthly":
         books_qs = (
             Book.objects
             .filter(readed_num_month__gt=0)
             .order_by("-readed_num_month", "-like_count")
+            .prefetch_related("authors_book_list__author")
         )
     else:  # steady
         books_qs = (
             Book.objects
             .filter(is_steady=True)
             .order_by("-readed_num_month", "-like_count")
+            .prefetch_related("authors_book_list__author")
         )
 
     books = list(books_qs[:LIST_LIMIT])
@@ -693,52 +696,6 @@ def books_popular(request):
             {"message": "많이 읽힌 도서 목록 조회 성공", "query": q, "items": []},
             status=status.HTTP_200_OK,
         )
-
-    # 2) top_tags 구성 (기존 정책 유지)
-    booktags = (
-        BookTag.objects
-        .select_related("tag", "tag__canonical")
-        .filter(book__isbn__in=book_isbns)
-        .order_by("-tag_count", "tag__name")
-    )
-
-    top_tags_map = {}
-    seen_canonical_map = {}
-
-    for bt in booktags:
-        isbn = bt.book_id
-        tag = bt.tag
-
-        if tag.status == "BLOCKED":
-            continue
-
-        canonical = (
-            tag.canonical
-            if tag.status == "MERGED" and tag.canonical_id
-            else tag
-        )
-
-        if canonical.status == "BLOCKED":
-            continue
-
-        if isbn not in top_tags_map:
-            top_tags_map[isbn] = []
-            seen_canonical_map[isbn] = set()
-
-        if canonical.id in seen_canonical_map[isbn]:
-            continue
-
-        slug = canonical.normalized
-        top_tags_map[isbn].append({
-            "id": canonical.id,
-            "name": canonical.name,
-            "slug": slug,
-            "color": _pick_color(slug),
-        })
-        seen_canonical_map[isbn].add(canonical.id)
-
-        if len(top_tags_map[isbn]) >= TOP_TAGS_LIMIT:
-            continue
 
     # 3) is_liked, is_wished 계산
     liked_isbn_set = set()
@@ -759,6 +716,23 @@ def books_popular(request):
     results = []
     for book in books:
         isbn = book.isbn
+
+        # top_tags string list
+        # DB에 저장된 top_tags(JSON) 앞 4개
+        tags_list = book.top_tags[:4] if book.top_tags else []
+
+        # 대표 작가 1명
+        main_author = None
+        # authors_book_list는 prefetch_related로 가져옴
+        authors = book.authors_book_list.all()
+        if authors:
+            # is_primary 우선, 없으면 첫 번째
+            primary = next((a for a in authors if a.is_primary), None)
+            if primary:
+                main_author = primary.author.name
+            else:
+                main_author = authors[0].author.name
+        
         results.append({
             "isbn": isbn,
             "title": book.title,
@@ -767,7 +741,9 @@ def books_popular(request):
             "abstract_descript": book.abstract_descript,
 
             "like_count": book.like_count,
-            "top_tags": top_tags_map.get(isbn, []),
+            "top_tags": tags_list,
+            "genres": book.top_tags if book.top_tags else [],
+            "author": main_author,
 
             "is_liked": isbn in liked_isbn_set,
             "is_wished": isbn in wished_isbn_set,
