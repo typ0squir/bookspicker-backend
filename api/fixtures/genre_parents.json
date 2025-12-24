@@ -1,8 +1,12 @@
 [
-  { "model": "api.genreparent", "pk": 1, "fields": { "name": "영미소설" } },
-  { "model": "api.genreparent", "pk": 2, "fields": { "name": "일본소설" } },
-  { "model": "api.genreparent", "pk": 3, "fields": { "name": "프랑스소설" } },
-  { "model": "api.genreparent", "pk": 4, "fields": { "name": "러시아소설" } },
-  { "model": "api.genreparent", "pk": 5, "fields": { "name": "독일소설" } },
-  { "model": "api.genreparent", "pk": 6, "fields": { "name": "그외유럽소설" } }
+    { "key": "영미소설", "name": "영미소설" },
+    { "key": "일본소설", "name": "일본소설" },
+    { "key": "그외유럽소설", "name": "그외유럽소설" },
+    { "key": "프랑스소설", "name": "프랑스소설" },
+    { "key": "러시아소설", "name": "러시아소설" },
+    { "key": "독일소설", "name": "독일소설" },
+    { "key": "한국소설", "name": "한국소설" },
+    { "key": "청소년소설", "name": "청소년소설" },
+    { "key": "중국소설", "name": "중국소설" },
+    { "key": "북유럽소설", "name": "북유럽소설" }
 ]

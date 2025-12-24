@@ -1,21 +1,39 @@
 [
-  { "model": "api.genrechild", "pk": 101, "fields": { "name": "영미소설 일반", "parent": 1 } },
-  { "model": "api.genrechild", "pk": 102, "fields": { "name": "미스터리/스릴러소설", "parent": 1 } },
-  { "model": "api.genrechild", "pk": 103, "fields": { "name": "공포/호러소설", "parent": 1 } },
-  { "model": "api.genrechild", "pk": 104, "fields": { "name": "고전소설/문학선", "parent": 1 } },
-  { "model": "api.genrechild", "pk": 105, "fields": { "name": "SF/과학소설", "parent": 1 } },
-  { "model": "api.genrechild", "pk": 106, "fields": { "name": "SF/과학소설", "parent": 1 } },
+    { "parent_key": "영미소설", "key": "영미소설 일반", "name": "영미소설 일반" },
+    { "parent_key": "영미소설", "key": "미스터리/스릴러소설", "name": "미스터리/스릴러소설" },
+    { "parent_key": "영미소설", "key": "공포/호러소설", "name": "공포/호러소설" },
+    { "parent_key": "영미소설", "key": "고전소설/문학선", "name": "고전소설/문학선" },
+    { "parent_key": "영미소설", "key": "SF/과학소설", "name": "SF/과학소설" },
 
-  { "model": "api.genrechild", "pk": 201, "fields": { "name": "일본소설일반", "parent": 2 } },
-  { "model": "api.genrechild", "pk": 202, "fields": { "name": "미스터리/스릴러 소설", "parent": 2 } },
-  { "model": "api.genrechild", "pk": 203, "fields": { "name": "드라마/영화소설", "parent": 2 } },
+    { "parent_key": "일본소설", "key": "미스터리/스릴러 소설", "name": "미스터리/스릴러 소설" },
+    { "parent_key": "일본소설", "key": "일본소설일반", "name": "일본소설일반" },
+    { "parent_key": "일본소설", "key": "드라마/영화소설", "name": "드라마/영화소설" },
+    { "parent_key": "일본소설", "key": "고전소설/문학선", "name": "고전소설/문학선" },
 
-  { "model": "api.genrechild", "pk": 301, "fields": { "name": "프랑스소설일반", "parent": 3 } },
+    { "parent_key": "그외유럽소설", "key": "그외유럽소설", "name": "그외유럽소설" },
+    { "parent_key": "그외유럽소설", "key": "이탈리아소설", "name": "이탈리아소설" },
 
-  { "model": "api.genrechild", "pk": 401, "fields": { "name": "고전소설/문학선", "parent": 4 } },
-  { "model": "api.genrechild", "pk": 402, "fields": { "name": "러시아소설일반", "parent": 4 } },
+    { "parent_key": "프랑스소설", "key": "프랑스소설일반", "name": "프랑스소설일반" },
+    { "parent_key": "프랑스소설", "key": "SF/과학소설", "name": "SF/과학소설" },
 
-  { "model": "api.genrechild", "pk": 501, "fields": { "name": "고전소설/문학선", "parent": 5 } },
+    { "parent_key": "러시아소설", "key": "고전소설/문학선", "name": "고전소설/문학선" },
+    { "parent_key": "러시아소설", "key": "러시아소설일반", "name": "러시아소설일반" },
 
-  { "model": "api.genrechild", "pk": 601, "fields": { "name": "그외유럽소설", "parent": 6 } }
+    { "parent_key": "독일소설", "key": "고전소설/문학선", "name": "고전소설/문학선" },
+    { "parent_key": "독일소설", "key": "독일소설일반", "name": "독일소설일반" },
+    { "parent_key": "독일소설", "key": "공포/호러소설", "name": "공포/호러소설" },
+    { "parent_key": "독일소설", "key": "미스터리/스릴러소설", "name": "미스터리/스릴러소설" },
+
+    { "parent_key": "한국소설", "key": "한국소설일반", "name": "한국소설일반" },
+    { "parent_key": "한국소설", "key": "고전소설/문학선", "name": "고전소설/문학선" },
+    { "parent_key": "한국소설", "key": "판타지소설", "name": "판타지소설" },
+
+    { "parent_key": "청소년소설", "key": "중국", "name": "중국" },
+    { "parent_key": "청소년소설", "key": "한국", "name": "한국" },
+
+    { "parent_key": "중국소설", "key": "고전소설/문학선", "name": "고전소설/문학선" },
+    { "parent_key": "중국소설", "key": "SF/과학소설", "name": "SF/과학소설" },
+    { "parent_key": "중국소설", "key": "중국소설일반", "name": "중국소설일반" },
+
+    { "parent_key": "북유럽소설", "key": "미스터리/스릴러소설", "name": "미스터리/스릴러소설" }
 ]

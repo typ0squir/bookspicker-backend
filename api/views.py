@@ -20,7 +20,7 @@ from bs4 import BeautifulSoup
 from .models import (
     Book, AuthorsBook, BookTag, Tag,
     UserBookHistory, UserBookLike, Wishlist,
-    Library, UserBookHistory, UserBookTag
+    Library, UserBookHistory, UserBookTag, GenreChild
 )
 from .permissions import IsActiveUser
 from .constants import MAIN_BANNERS
@@ -90,23 +90,8 @@ def book_detail(request, isbn):
         })
 
     # 태그 목록
-    book_tags_qs = (
-        BookTag.objects
-        .select_related("tag")
-        .filter(
-            book=book,
-            tag__status="ACTIVE",
-        )
-        .order_by("-tag_count")[:15]
-    )
-
-    book_tags = []
-    for bt in book_tags_qs:
-        book_tags.append({
-            "id": bt.tag.id,
-            "name": bt.tag.name,
-            "tag_count": bt.tag_count,
-        })
+    # 태그 사용 (book.top_tags 상위 5개)
+    book_tags = book.top_tags[:5] if book.top_tags else []
 
     # 좋아요 여부
     is_liked = False
@@ -176,12 +161,7 @@ def book_detail(request, isbn):
 
             # 임시 더미 (추후 추천/AI 로직으로 대체)
             "why_picked": {
-                "body": (
-                    "최근 닉네임님이 고른 책들을 보면, "
-                    "사람 사이의 따뜻함과 조용한 연민이 스며든 "
-                    "이야기들을 자주 선택하시는 느낌이었어요. "
-                    "이 책은 그런 취향과 잘 맞는 작품이에요."
-                )
+                "body": book.recommendation_refer[0] if (book.recommendation_refer and len(book.recommendation_refer) > 0) else ""
             },
 
             "book_tags": book_tags,
@@ -1349,3 +1329,16 @@ def jwt_exchange(request):
 
 
 
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def genre_list(request):
+    genres = GenreChild.objects.select_related("parent").all().order_by("parent__name", "name")
+    data = []
+    for g in genres:
+        data.append({
+            "id": g.id,
+            "name": g.name,
+            "parent": g.parent.name
+        })
+    return Response(data, status=status.HTTP_200_OK)
