@@ -26,7 +26,7 @@ class User(AbstractUser):
         trait = self.trait
         return all([
             self.nickname,
-            trait.coldstart_tags_done_at,
+            # trait.coldstart_tags_done_at, # Tag selection removed from flow
             trait.coldstart_books_done_at
         ])
 
