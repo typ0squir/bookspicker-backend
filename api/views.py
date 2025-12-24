@@ -166,6 +166,7 @@ def book_detail(request, isbn):
             "like_count": book.like_count,
             "is_liked": is_liked,
             "is_wished": is_wished,
+            "epub_url": book.epub_file,
 
             "action_urls": {
                 "read_now_url": f"https://example.com/reader/{book.isbn}",
