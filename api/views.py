@@ -91,7 +91,7 @@ def book_detail(request, isbn):
 
     # 태그 목록
     # 태그 사용 (book.top_tags 상위 5개)
-    book_tags = book.top_tags[:5] if book.top_tags else []
+    book_tags = book.top_tags[:10] if book.top_tags else []
 
     # 좋아요 여부
     is_liked = False
@@ -719,7 +719,7 @@ def books_popular(request):
 
         # top_tags string list
         # DB에 저장된 top_tags(JSON) 앞 4개
-        tags_list = book.top_tags[:4] if book.top_tags else []
+        tags_list = book.top_tags[:7] if book.top_tags else []
 
         # 대표 작가 1명
         main_author = None
